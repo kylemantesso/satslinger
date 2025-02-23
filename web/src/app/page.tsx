@@ -1,6 +1,25 @@
 import Image from "next/image";
 
-export default function Home() {
+interface Tweet {
+  id: string;
+  text: string;
+}
+
+interface TwitterResponse {
+  data: Tweet[];
+}
+
+async function getTweets() {
+  const res = await fetch('http://localhost:3000/api/tweets');
+  if (!res.ok) {
+    throw new Error('Failed to fetch tweets');
+  }
+  return res.json();
+}
+
+export default async function Home() {
+  const { data: tweets } = await getTweets() as TwitterResponse;
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
@@ -47,6 +66,23 @@ export default function Home() {
           >
             Read our docs
           </a>
+          <a
+            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
+            href="/bitcoin"
+          >
+            Bitcoin Tweets
+          </a>
+        </div>
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Recent Tweets</h2>
+          <div className="space-y-4">
+            {tweets.map((tweet) => (
+              <div key={tweet.id} className="p-4 border rounded-lg">
+                <p>{tweet.text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">

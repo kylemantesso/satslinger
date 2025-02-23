@@ -1,0 +1,6 @@
+private.pem
+public.pem
+.idea
+.vscode
+.env
+.DS_Store
