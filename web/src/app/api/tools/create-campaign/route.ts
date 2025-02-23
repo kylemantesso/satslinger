@@ -5,11 +5,11 @@ import { utils } from "signet.js";
 import { KeyPair } from "@near-js/crypto";
 
 
-export const NetworkId = 'testnet';
-export const MPC_CONTRACT = 'v1.signer-prod.testnet'
-export const MPC_KEY = 'secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3';
+const NetworkId = 'testnet';
+const MPC_CONTRACT = 'v1.signer-prod.testnet'
+// const MPC_KEY = 'secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3';
 
-export const CONTRACT = new utils.chains.near.contract.NearChainSignatureContract({
+const CONTRACT = new utils.chains.near.contract.NearChainSignatureContract({
   networkId: NetworkId,
   contractId: MPC_CONTRACT,
   accountId: '',
