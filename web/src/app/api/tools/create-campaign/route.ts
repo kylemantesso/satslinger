@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     console.log(`🔑 Deriving Bitcoin address for ${accountId} using derivation path ${derivationPath}...`);
 
     // Derive the Bitcoin address off-chain using the SignetBTC helper.
-    const { address: btcAddress, publicKey } = await Bitcoin.deriveAddressAndPublicKey(accountId, derivationPath);
+    const { address: btcAddress } = await Bitcoin.deriveAddressAndPublicKey(accountId, derivationPath);
     console.log('🔑 Derived BTC address:', btcAddress);
 
     // Create the transaction payload for campaign registration.
@@ -87,8 +87,8 @@ export async function GET(request: Request) {
         derivationPath,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Error creating transaction payload:', error);
-    return NextResponse.json({ error: error.toString() }, { status: 500 });
+    return NextResponse.json({ error: (error as unknown as Error).toString() }, { status: 500 });
   }
 }

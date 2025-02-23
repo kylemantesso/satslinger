@@ -1,0 +1,19 @@
+{
+  "name": "indexer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@near-lake/framework": "^0.1.5",
+    "@near-lake/primitives": "^0.5.2",
+    "axios": "^1.7.9",
+    "near-api-js": "^5.0.1"
+  }
+}
