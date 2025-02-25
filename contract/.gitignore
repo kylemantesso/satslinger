@@ -1,0 +1,7 @@
+dist
+.parcel-cache
+node_modules
+contract/target
+**/keys-*.txt
+.env
+notes

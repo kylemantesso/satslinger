@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connect, keyStores, utils } from 'near-api-js';
-import { KeyPair } from 'near-api-js/lib/utils/key_pair';
+import { KeyPair } from 'near-api-js';
 import { generateSeedPhrase } from 'near-seed-phrase';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -34,7 +34,9 @@ const config = {
 
 // Initialize the keyStore with account credentials
 async function initializeKeyStore() {
-  const keyPair = KeyPair.fromString(NEAR_PRIVATE_KEY);
+  const keyPair = KeyPair.fromRandom('ed25519');
+  const privateKey = NEAR_PRIVATE_KEY.replace('ed25519:', '');
+  keyPair.secretKey = Buffer.from(privateKey, 'base64');
   await keyStore.setKey('testnet', NEAR_ACCOUNT_ID, keyPair);
 }
 
@@ -303,14 +305,13 @@ async function storeDropDetails(dropData: {
   authorHandle: string,
   amount: number,
   publicKey: string,
-  secretKey: string
+  secretKey: string,
+  hash: string
 }) {
-  const hash = generateDropHash();
-  
   const { data, error } = await supabase
     .from('drops')
     .insert({
-      hash,
+      hash: dropData.hash,
       campaign_id: dropData.campaignId,
       tweet_id: dropData.tweetId,
       author_handle: dropData.authorHandle,
@@ -328,7 +329,7 @@ async function storeDropDetails(dropData: {
     throw error;
   }
 
-  return { hash, ...data };
+  return data;
 }
 
 async function createDropForWinner(campaignId: string, amount: number, twitterHandle: string, tweetId: string) {
@@ -340,6 +341,10 @@ async function createDropForWinner(campaignId: string, amount: number, twitterHa
       tweetId
     });
 
+    // Generate hash first
+    const hash = generateDropHash();
+    console.log('Generated drop hash:', hash);
+
     // Initialize keyStore with credentials
     console.log('Initializing keyStore with account:', NEAR_ACCOUNT_ID);
     await initializeKeyStore();
@@ -347,9 +352,9 @@ async function createDropForWinner(campaignId: string, amount: number, twitterHa
     // Generate a new key pair for the drop
     console.log('Generating new key pair for drop');
     const { secretKey: dropSecret } = generateSeedPhrase();
-    // @ts-ignore
-    const dropKeyPair = KeyPair.fromString(dropSecret);
-    const publicKey = dropKeyPair.getPublicKey().toString();
+    const keyPair = KeyPair.fromRandom('ed25519');
+    keyPair.secretKey = Buffer.from(dropSecret.replace('ed25519:', ''), 'base64');
+    const publicKey = keyPair.getPublicKey().toString();
     console.log('Generated public key:', publicKey);
 
     // Connect to NEAR with initialized keyStore
@@ -358,12 +363,13 @@ async function createDropForWinner(campaignId: string, amount: number, twitterHa
     const account = await near.account(NEAR_ACCOUNT_ID);
     console.log('Connected to NEAR account:', NEAR_ACCOUNT_ID);
 
-    // Call the add_drop method
+    // Call the add_drop method with hash
     console.log('Calling add_drop with args:', {
       campaign_id: parseInt(campaignId),
       amount: amount.toString(),
       target_twitter_handle: twitterHandle,
-      key: publicKey
+      key: publicKey,
+      hash
     });
 
     const result = await account.functionCall({
@@ -374,6 +380,7 @@ async function createDropForWinner(campaignId: string, amount: number, twitterHa
         amount: amount.toString(),
         target_twitter_handle: twitterHandle,
         key: publicKey,
+        hash
       },
       gas: BigInt('300000000000000')
     });
@@ -388,21 +395,22 @@ async function createDropForWinner(campaignId: string, amount: number, twitterHa
       authorHandle: twitterHandle,
       amount,
       publicKey,
-      secretKey: dropSecret
+      secretKey: dropSecret,
+      hash
     });
 
     console.log(`Successfully created drop for ${twitterHandle} with ${amount} satoshis`);
     return {
       dropSecret,
       publicKey,
-      hash: storedDrop.hash
+      hash
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Failed to create drop:', error);
     console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
     });
     throw error;
   }

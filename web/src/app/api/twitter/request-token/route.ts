@@ -39,7 +39,7 @@ export async function POST() {
     authUrl.searchParams.append('response_type', 'code');
     authUrl.searchParams.append('client_id', TWITTER_CLIENT_ID);
     authUrl.searchParams.append('redirect_uri', TWITTER_CALLBACK_URL);
-    authUrl.searchParams.append('scope', 'users.read tweets.read offline.access');
+    authUrl.searchParams.append('scope', 'users.read tweets.read');
     authUrl.searchParams.append('code_challenge', codeChallenge);
     authUrl.searchParams.append('code_challenge_method', 'S256');
     authUrl.searchParams.append('state', state);

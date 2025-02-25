@@ -99,6 +99,8 @@ export default function DropPage() {
           return;
         }
 
+        debugger;
+
         // Get user details with proof using the author_handle from drop data
         const res = await fetch(`/api/twitter/user/${drop.author_handle}`, {
           headers: {
@@ -153,7 +155,7 @@ export default function DropPage() {
       authUrl.searchParams.append('response_type', 'code');
       authUrl.searchParams.append('client_id', process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID!);
       authUrl.searchParams.append('redirect_uri', process.env.NEXT_PUBLIC_TWITTER_CALLBACK_URL!);
-      authUrl.searchParams.append('scope', 'users.read tweet.read offline.access');
+      authUrl.searchParams.append('scope', 'users.read tweet.read');
       authUrl.searchParams.append('code_challenge', codeChallenge);
       authUrl.searchParams.append('code_challenge_method', 'S256');
       authUrl.searchParams.append('state', state);
