@@ -1,12 +1,9 @@
 import { startStream } from '@near-lake/framework';
 import fetch from 'node-fetch';
 
-const CONTRACT_ID = 'linkdrop.kylemantesso.testnet';
-const API_ENDPOINT = 'https://tipper-agent.vercel.app/api/contract';
-
-function formatNearAmount(amount) {
-    return (parseInt(amount) / 1e24).toFixed(24) + ' NEAR';
-}
+const CONTRACT_ID = 'satslinger.testnet';
+// const API_ENDPOINT = 'https://tipper-agent.vercel.app/api/contract';
+const API_ENDPOINT = 'http://localhost:3000/api/contract';
 
 async function handleStreamerMessage(block) {
     try {
@@ -32,32 +29,52 @@ async function handleStreamerMessage(block) {
                                     const timestamp = new Date(block.streamerMessage.block.header.timestamp / 1000000).toISOString();
                                     const executionOutcome = outcome.executionOutcome;
                                     const isSuccess = executionOutcome.outcome.status.SuccessValue !== undefined;
-
+                                    
+                                    // Extract campaign_id from the returned SuccessValue if available
+                                    let campaignId = null;
+                                    if (isSuccess) {
+                                        const successValue = executionOutcome.outcome.status.SuccessValue;
+                                        if (successValue) {
+                                            const decoded = Buffer.from(successValue, 'base64').toString('utf8');
+                                            try {
+                                                // If the returned value is a JSON string that includes campaign_id
+                                                const parsed = JSON.parse(decoded);
+                                                campaignId = parsed.campaign_id || parsed;
+                                            } catch (error) {
+                                                // If the decoded value is a plain string (not JSON)
+                                                campaignId = decoded;
+                                            }
+                                        }
+                                    }
+                                
                                     console.log('\n🎯 create_campaign detected!');
                                     console.log(`Block: ${blockHeight} (${timestamp})`);
                                     console.log(`Caller: ${receipt.predecessorId}`);
                                     console.log(`Status: ${isSuccess ? '✅ Success' : '❌ Failed'}`);
-
+                                    console.log(`Campaign ID: ${campaignId}`);
+                                
                                     const payload = {
                                         block: {
                                             height: blockHeight,
                                             timestamp: timestamp
                                         },
                                         caller: receipt.predecessorId,
+                                        receiptId: receipt.receiptId, // sending receiptId for additional reference if needed
+                                        campaignId, // include the campaign id here
                                         args: action.FunctionCall.args 
                                             ? JSON.parse(Buffer.from(action.FunctionCall.args, 'base64').toString('utf8'))
                                             : null,
                                         success: isSuccess,
                                         error: !isSuccess ? executionOutcome.outcome.status.Failure : null
                                     };
-
+                                
                                     try {
                                         const response = await fetch(API_ENDPOINT, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify(payload)
                                         });
-
+                                
                                         if (!response.ok) {
                                             console.error('Failed to send notification:', response.status);
                                         }
