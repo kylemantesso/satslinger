@@ -10,13 +10,13 @@ const TWITTER_REFRESH_TOKEN = process.env.TWITTER_REFRESH_TOKEN!;
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID!;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET!;
 const TWITTER_API_URL = 'https://api.twitter.com/2/tweets/search/recent';
-const CONTRACT_ID = 'satslinger.testnet';
-const MINIMUM_AGE_HOURS = 8;
+const CONTRACT_ID = 'satslinger.coldice4974.testnet';
+const MINIMUM_AGE_HOURS = 72;
 const XAI_API_KEY = process.env.XAI_API_KEY;
 
 // Add NEAR account credentials to env vars
-const NEAR_ACCOUNT_ID = process.env.NEAR_ACCOUNT_ID!;
-const NEAR_PRIVATE_KEY = process.env.NEAR_PRIVATE_KEY!;
+const NEAR_ACCOUNT_ID = process.env.SATSLINGER_ACCOUNT_ID!;
+const NEAR_PRIVATE_KEY = process.env.SATSLINGER_PRIVATE!;
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -60,10 +60,10 @@ type Tweet = {
 async function getCampaigns() {
   // Connect to NEAR
   const near = await connect(config);
-  const account = await near.account(CONTRACT_ID);
+  const contractAccount = await near.account(CONTRACT_ID);
 
   // Fetch all campaigns from contract
-  const campaigns = await account.viewFunction({
+  const campaigns = await contractAccount.viewFunction({
     contractId: CONTRACT_ID,
     methodName: 'get_campaigns',
     args: {}
@@ -73,6 +73,11 @@ async function getCampaigns() {
     console.log('ℹ️ No campaigns found in contract');
     return [];
   }
+
+  console.log('Campaigns:', campaigns.map(([id, campaign]) => ({
+    id,
+    search_terms: campaign.search_terms
+  })));
 
   return campaigns;
 }
@@ -100,7 +105,7 @@ async function evaluateTweetWithXAI(tweets: Tweet[], searchTerms: string[], rewa
     
     Tweets:
     ${tweets.map((t, i) => `
-    ${i + 1}. Text: ${t.text}
+    ${i}. Text: ${t.text}
     Engagement Score: ${t.engagement_score}
     Reward Amount: ${rewardAmounts[i]} sats
     `).join('\n')}
@@ -175,7 +180,10 @@ async function getExistingDrops(tweetIds: string[]): Promise<string[]> {
 }
 
 async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
+  console.log(`Fetching tweets for campaign ${id} with search terms:`, campaign.search_terms);
   const query = buildTwitterQuery(campaign.search_terms);
+  console.log(`Built Twitter query: ${query}`);
+  
   const queryParams = new URLSearchParams({
     query,
     max_results: '20',
@@ -186,8 +194,10 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
   const queryUrl = `${TWITTER_API_URL}?${queryParams.toString()}`;
   const currentTime = Math.floor(Date.now() / 1000);
   const minTimestamp = currentTime - (MINIMUM_AGE_HOURS * 60 * 60);
+  console.log(`Using minimum timestamp: ${new Date(minTimestamp * 1000).toISOString()}`);
 
   try {
+    console.log(`Making Twitter API request to: ${queryUrl}`);
     const response = await fetch(
       `${queryUrl}&start_time=${new Date(minTimestamp * 1000).toISOString()}`,
       {
@@ -195,21 +205,28 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
       }
     );
     const data = await response.json();
+    console.log(`Twitter API response status: ${response.status}`);
 
     if (!response.ok) {
+      console.error(`Twitter API error: ${data.message || 'Unknown error'}`);
       return { campaignId: id, results: { error: data.message || 'Failed to fetch tweets' } };
     }
 
+    console.log(`Retrieved ${data.data?.length || 0} tweets from Twitter API`);
+    
     // Get all tweet IDs
     const tweetIds = data.data?.map((tweet: Tweet) => tweet.id) || [];
+    console.log(`Extracted ${tweetIds.length} tweet IDs`);
     
     // Get existing drops
     const existingDropTweetIds = await getExistingDrops(tweetIds);
+    console.log(`Found ${existingDropTweetIds.length} existing drops for these tweets`);
     
     // Filter out tweets that already have drops
     const filteredTweets = data.data?.filter((tweet: Tweet) => 
       !existingDropTweetIds.includes(tweet.id)
     ) || [];
+    console.log(`After filtering existing drops: ${filteredTweets.length} tweets remaining`);
 
     const scoredTweets = filteredTweets
       .map((tweet: Tweet) => ({
@@ -218,10 +235,17 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
       }))
       .sort((a: Tweet, b: Tweet) => b.engagement_score - a.engagement_score);
 
-    console.log('Scored tweets (excluding existing drops):', scoredTweets.slice(0, 3));
+    console.log(`Scored and sorted ${scoredTweets.length} tweets by engagement`);
+    console.log('Top 3 tweets (excluding existing drops):', scoredTweets.slice(0, 3).map(t => ({
+      id: t.id,
+      text: t.text.substring(0, 50) + '...',
+      engagement_score: t.engagement_score,
+      metrics: t.public_metrics
+    })));
 
     return { campaignId: id, tweets: scoredTweets.slice(0, 3) };
   } catch (err: any) {
+    console.error(`Error fetching tweets for campaign ${id}:`, err);
     return { campaignId: id, results: { error: err.message || 'Error occurred' } };
   }
 }
@@ -229,19 +253,19 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
 function calculateRewardAmount(tweet: Tweet): number {
   const { like_count, retweet_count, reply_count, quote_count } = tweet.public_metrics;
   
-  // Base reward is 100 sats
-  const baseReward = 100;
+  // Base reward is 546 sats
+  const baseReward = 546;
   
-  // Calculate engagement multiplier (max 9x)
-  const engagementMultiplier = Math.min(9, Math.floor(
-    (like_count * 0.5 + 
-     retweet_count * 2 + 
-     reply_count * 1.5 + 
-     quote_count * 2) / 10
-  ));
+  // Calculate engagement multiplier (max 1.83x to keep the same range)
+  const engagementMultiplier = Math.min(1.83, Math.floor(
+    (like_count * 0.1 + 
+     retweet_count * 0.4 + 
+     reply_count * 0.3 + 
+     quote_count * 0.4) / 10
+  ) / 5);
   
-  // Final reward between 100-1000 sats
-  return Math.min(1000, baseReward * (1 + engagementMultiplier));
+  // Final reward between 546-1546 sats
+  return Math.ceil(Math.min(1546, baseReward * (1 + engagementMultiplier)));
 }
 
 async function getAccessToken(): Promise<string> {
@@ -300,26 +324,20 @@ function generateDropHash(): string {
 }
 
 async function storeDropDetails(dropData: {
-  campaignId: string,
-  tweetId: string,
-  authorHandle: string,
-  amount: number,
-  publicKey: string,
+  hash: string,
   secretKey: string,
-  hash: string
+  tweetId: string,
+  campaignId: string,
+  twitterHandle: string
 }) {
   const { data, error } = await supabase
     .from('drops')
     .insert({
       hash: dropData.hash,
-      campaign_id: dropData.campaignId,
-      tweet_id: dropData.tweetId,
-      author_handle: dropData.authorHandle,
-      amount: dropData.amount,
-      public_key: dropData.publicKey,
       secret_key: dropData.secretKey,
-      claimed: false,
-      created_at: new Date().toISOString()
+      tweet_id: dropData.tweetId,
+      campaign_id: dropData.campaignId,
+      twitter_handle: dropData.twitterHandle
     })
     .select()
     .single();
@@ -332,88 +350,89 @@ async function storeDropDetails(dropData: {
   return data;
 }
 
-async function createDropForWinner(campaignId: string, amount: number, twitterHandle: string, tweetId: string) {
-  try {
-    console.log('Creating drop with params:', {
-      campaignId,
-      amount,
-      twitterHandle,
-      tweetId
-    });
-
-    // Generate hash first
-    const hash = generateDropHash();
-    console.log('Generated drop hash:', hash);
-
-    // Initialize keyStore with credentials
-    console.log('Initializing keyStore with account:', NEAR_ACCOUNT_ID);
-    await initializeKeyStore();
-
-    // Generate a new key pair for the drop
-    console.log('Generating new key pair for drop');
-    const { secretKey: dropSecret } = generateSeedPhrase();
-    const keyPair = KeyPair.fromRandom('ed25519');
-    keyPair.secretKey = Buffer.from(dropSecret.replace('ed25519:', ''), 'base64');
-    const publicKey = keyPair.getPublicKey().toString();
-    console.log('Generated public key:', publicKey);
-
-    // Connect to NEAR with initialized keyStore
-    console.log('Connecting to NEAR testnet');
-    const near = await connect(config);
-    const account = await near.account(NEAR_ACCOUNT_ID);
-    console.log('Connected to NEAR account:', NEAR_ACCOUNT_ID);
-
-    // Call the add_drop method with hash
-    console.log('Calling add_drop with args:', {
-      campaign_id: parseInt(campaignId),
-      amount: amount.toString(),
-      target_twitter_handle: twitterHandle,
-      key: publicKey,
-      hash
-    });
-
-    const result = await account.functionCall({
-      contractId: CONTRACT_ID,
-      methodName: 'add_drop',
-      args: {
-        campaign_id: parseInt(campaignId),
-        amount: amount.toString(),
-        target_twitter_handle: twitterHandle,
-        key: publicKey,
-        hash
-      },
-      gas: BigInt('300000000000000')
-    });
-
-    console.log('Contract call result:', result);
-
-    // Store drop details in Supabase
-    console.log('Storing drop details in Supabase');
-    const storedDrop = await storeDropDetails({
-      campaignId,
-      tweetId,
-      authorHandle: twitterHandle,
-      amount,
-      publicKey,
-      secretKey: dropSecret,
-      hash
-    });
-
-    console.log(`Successfully created drop for ${twitterHandle} with ${amount} satoshis`);
-    return {
-      dropSecret,
-      publicKey,
-      hash
-    };
-  } catch (error: unknown) {
-    console.error('Failed to create drop:', error);
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    throw error;
+async function initKeyStore() {
+  if (!NEAR_PRIVATE_KEY || !NEAR_ACCOUNT_ID) {
+    throw new Error('Missing PRIVATE_KEY or ACCOUNT_ID in environment variables');
   }
+  
+  const keyPair = KeyPair.fromString(NEAR_PRIVATE_KEY);
+  await keyStore.setKey('testnet', NEAR_ACCOUNT_ID, keyPair);
+  
+  return connect({
+    networkId: 'testnet',
+    keyStore,
+    nodeUrl: 'https://rpc.testnet.near.org',
+  });
+}
+
+// Add this function to fetch Twitter user details
+async function getTwitterUser(userId: string): Promise<string> {
+  const response = await fetch(
+    `https://api.twitter.com/2/users/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch Twitter user');
+  }
+
+  const data = await response.json();
+  return data.data.username;
+}
+
+async function createDropForWinner(params: { 
+    campaignId: number; 
+    amount: number; 
+    twitterHandle: string;
+    tweetId: string;
+    hash: string; 
+    publicKey: string;
+    dropSecret: string;
+}) {
+    console.log('Creating drop with params:', params);
+    
+    try {
+        console.log('Initializing keyStore with account:', NEAR_ACCOUNT_ID);
+        const near = await initKeyStore();
+        const account = await near.account(NEAR_ACCOUNT_ID);
+        
+        // First create the drop
+        console.log(`Calling contract ${CONTRACT_ID} to add drop`);
+        await account.functionCall({
+            contractId: CONTRACT_ID,
+            methodName: 'add_drop',
+            args: {
+                campaign_id: params.campaignId,
+                amount: params.amount.toString(),
+                // target_twitter_handle: params.twitterHandle,
+                // target_tweet_id: params.tweetId,
+                target_twitter_handle: "kylemantesso",
+                target_tweet_id: "896618952914124800",
+                hash: params.hash
+            }
+        });
+
+        // Then add the key to the drop
+        console.log(`Adding key to drop with hash ${params.hash}`);
+        await account.functionCall({
+            contractId: CONTRACT_ID,
+            methodName: 'add_drop_key',
+            args: {
+                hash: params.hash,
+                key: params.publicKey
+            }
+        });
+        
+        console.log('Successfully created drop and added key');
+        return true;
+
+    } catch (error) {
+        console.error('Failed to create drop:', error);
+        throw error;
+    }
 }
 
 async function evaluateCampaignTweets(campaignResult: { campaignId: string, tweets: Tweet[] }, campaign: Campaign) {
@@ -425,42 +444,56 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
   // Calculate rewards first
   const rewardAmounts = campaignResult.tweets.map(tweet => calculateRewardAmount(tweet));
   
-  const winningIndex = 0; // For now, just use the highest engagement tweet
-  const winningTweet = campaignResult.tweets[winningIndex];
-  const rewardAmount = rewardAmounts[winningIndex];
+  const hash = generateDropHash();
+  const dropUrl = `${process.env.BASE_URL}/d/${hash}`;
+
+  // First evaluate with XAI to get the winning tweet
+  const evaluation = await evaluateTweetWithXAI(
+    campaignResult.tweets, 
+    campaign.search_terms, 
+    rewardAmounts,
+    dropUrl
+  );
+
+  if (!evaluation) {
+    return {
+      campaignId: campaignResult.campaignId,
+      results: { error: 'Failed to evaluate tweets' }
+    };
+  }
+
+  // Use the winning tweet index from XAI
+  const winningTweet = campaignResult.tweets[evaluation.winningTweetIndex];
+  const rewardAmount = rewardAmounts[evaluation.winningTweetIndex];
+
+  // Get Twitter handle
+  const twitterHandle = await getTwitterUser(winningTweet.author_id);
+
+  // Generate key pair for drop using seed phrase
+  const { secretKey: dropSecret } = generateSeedPhrase();
+  const dropKeyPair = KeyPair.fromString(dropSecret);
+  const publicKey = dropKeyPair.getPublicKey().toString();
 
   try {
-    // Create the drop first
-    const drop = await createDropForWinner(
-      campaignResult.campaignId,
-      rewardAmount,
-      winningTweet.author_id,
-      winningTweet.id
-    );
+    // Create the drop with handle instead of ID
+    const drop = await createDropForWinner({
+      campaignId: parseInt(campaignResult.campaignId),
+      amount: rewardAmount,
+      twitterHandle: twitterHandle,
+      tweetId: winningTweet.id,
+      hash,
+      publicKey,
+      dropSecret  // Pass through the secret
+    });
 
-    const dropUrl = `${process.env.BASE_URL}/d/${drop.hash}`;
-
-    // Now evaluate with XAI including the drop URL
-    const evaluation = await evaluateTweetWithXAI(
-      campaignResult.tweets, 
-      campaign.search_terms, 
-      rewardAmounts,
-      dropUrl
-    );
-
-    if (!evaluation) {
-      return {
-        campaignId: campaignResult.campaignId,
-        results: { error: 'Failed to evaluate tweets' }
-      };
-    }
-
-    // Simulate sending the tweet reply
-    console.log('Would send reply tweet:', evaluation.reply);
-    console.log('To tweet:', winningTweet.id);
-    console.log('Successfully sent reply tweet (simulated)');
-    console.log('Created drop with public key:', drop.publicKey);
-    console.log('Drop URL:', dropUrl);
+    // Store drop details with secret key
+    await storeDropDetails({
+      hash,
+      secretKey: dropSecret,  // Store the secret key
+      tweetId: winningTweet.id,
+      campaignId: campaignResult.campaignId,
+      twitterHandle: twitterHandle
+    });
 
     return {
       campaignId: campaignResult.campaignId,
@@ -470,8 +503,8 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
           reply: evaluation.reply,
           rewardAmount,
           drop: {
-            publicKey: drop.publicKey,
-            hash: drop.hash,
+            publicKey,
+            hash,
             url: dropUrl
           }
         }
@@ -493,21 +526,26 @@ export async function POST(request: Request) {
   }
 
   try {
+    console.log('Starting to process campaigns...');
     const campaigns = await getCampaigns();
+    console.log(`Found ${campaigns.length} campaigns to process`);
     if (campaigns.length === 0) return NextResponse.json({ data: [] });
 
     // First fetch all tweets
+    console.log('Fetching tweets for all campaigns...');
     const tweetResults = await Promise.all(
-      campaigns.map(([id, campaign]: [string, Campaign]) => 
-        fetchTweetsForCampaign(campaign, id)
-      )
+      campaigns.map(([id, campaign]: [string, Campaign]) => {
+        console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
+        return fetchTweetsForCampaign(campaign, id);
+      })
     );
 
     // Then evaluate with XAI
     const evaluatedResults = await Promise.all(
-      tweetResults.map((result, index) => 
-        evaluateCampaignTweets(result, campaigns[index][1])
-      )
+      tweetResults.map((result, index) => {
+        console.log(`Evaluating tweets for campaign ${campaigns[index][0]}`);
+        return evaluateCampaignTweets(result, campaigns[index][1]);
+      })
     );
 
     return NextResponse.json({ data: evaluatedResults });

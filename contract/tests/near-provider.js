@@ -5,8 +5,8 @@ const { Near, Account, KeyPair, keyStores } = nearAPI;
 
 // near config
 const { 
-    NEAR_ACCOUNT_ID: accountId, 
-    NEAR_PRIVATE_KEY: secretKey, 
+    SATSLINGER_ACCOUNT_ID: accountId, 
+    SATSLINGER_PRIVATE: secretKey, 
     LINKDROP_CONTRACT_ID: contractId 
 } = process.env;
 export const networkId = 'testnet';

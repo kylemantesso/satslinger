@@ -3,29 +3,87 @@
 import { notFound } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Tweet from '@/app/components/Tweet';
+import { convertLegacyToSegwit, pubKeyToAddress } from '@/utils/bitcoin';
+import { initNear, CONTRACT_ID } from '@/utils/near';
+import { Action, FunctionCall } from 'near-api-js/lib/transaction';
+import { PublicKey, KeyPair } from 'near-api-js/lib/utils/key_pair';
+import { connect, keyStores, Account } from 'near-api-js';
+import { broadcastTransaction } from '@/utils/bitcoin';
 
 type TwitterUser = {
   handle: string;
   id: string;
+  secret: string;
+  proof: string;
 };
 
 type Params = {
   hash: string;
 };
 
+type Drop = {
+  campaign_id: number;
+  target_tweet_id: number;
+  amount: number;
+  funder: string;
+  path: string;
+  keys: string[];
+  op_return_hex: string | null;
+  target_twitter_handle: string;
+  hash: string;
+  claimed: boolean;
+  claimed_by: string | null;
+  tweet_id: string;
+}
+
 async function getDrop(hash: string) {
-  // Use BASE_URL since this is a server component
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/drops/${hash}`, {
-    next: { revalidate: 60 } // Cache for 1 minute
-  });
+  try {
+    // Connect directly to NEAR RPC
+    const response = await fetch('https://rpc.testnet.near.org', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'dontcare',
+        method: 'query',
+        params: {
+          request_type: 'call_function',
+          finality: 'final',
+          account_id: 'satslinger.coldice4974.testnet',
+          method_name: 'get_drop',
+          args_base64: btoa(JSON.stringify({ hash }))
+        }
+      })
+    });
 
-  if (!res.ok) {
-    if (res.status === 404) return null;
-    throw new Error('Failed to fetch drop');
+    if (!response.ok) {
+      throw new Error('Failed to connect to NEAR RPC');
+    }
+
+    const result = await response.json();
+    
+    if (result.error) {
+      console.error('NEAR RPC error:', result.error);
+      return null;
+    }
+
+    // Parse the result - NEAR returns base64 encoded JSON
+    const resultBytes = result.result.result;
+    const resultString = new TextDecoder().decode(
+      new Uint8Array(resultBytes.map((x: number) => x))
+    );
+    
+    // If empty result, drop doesn't exist
+    if (!resultString) return null;
+    
+    return JSON.parse(resultString);
+  } catch (error) {
+    console.error('Error fetching drop from NEAR:', error);
+    return null;
   }
-
-  return res.json();
 }
 
 function generateCodeVerifier(): string {
@@ -49,22 +107,96 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
   return base64URLEncode(hash);
 }
 
+// Simple function to get UTXOs and select the largest one
+async function getUtxoInfo(pubKey, amount) {
+  try {
+    // Convert public key to Bitcoin address
+    const address = pubKeyToAddress(pubKey);
+    console.log('Converting pubkey to address:', { pubKey, address });
+
+    // Get UTXOs from Blockstream API
+    const networkId = 'testnet';
+    const bitcoinRpc = `https://blockstream.info/${
+      networkId === 'testnet' ? 'testnet/' : ''
+    }api`;
+    
+    const response = await fetch(`${bitcoinRpc}/address/${address}/utxo`);
+    if (!response.ok) throw new Error('Failed to fetch UTXOs');
+    
+    const utxos = await response.json();
+    console.log('UTXOs for funder address:', utxos);
+
+    if (!utxos || !utxos.length) {
+      console.log('No UTXOs found for address', address);
+      throw new Error('No UTXOs found');
+    }
+
+    // Find largest UTXO
+    let maxValue = 0;
+    utxos.forEach((utxo) => {
+      if (utxo.value > maxValue) maxValue = utxo.value;
+    });
+    
+    const filteredUtxos = utxos.filter((utxo) => utxo.value === maxValue);
+    let selectedUtxo = filteredUtxos[0];
+
+    // Calculate change
+    const feeRateResponse = await fetch(`${bitcoinRpc}/fee-estimates`);
+    const feeRate = await feeRateResponse.json();
+    const estimatedSize = 1 * 148 + 2 * 34 + 10; // 1 utxo * 148
+    const fee = estimatedSize * Math.ceil(feeRate[6] + 1);
+    const change = selectedUtxo.value - amount - fee;
+    
+    console.log('Fee calculation:', {
+      balance: selectedUtxo.value,
+      amount,
+      feeRate: feeRate[6],
+      estimatedSize,
+      fee,
+      change
+    });
+
+    return {
+      txid: selectedUtxo.txid,
+      vout: selectedUtxo.vout,
+      change: change > 0 ? change.toString() : '0'
+    };
+  } catch (e) {
+    console.log('Error getting UTXO info:', e);
+    throw e;
+  }
+}
+
+
+// Add this function to check if key is authorized
+async function checkAccessKey(account: Account, publicKey: string) {
+  const accessKeys = await account.getAccessKeys();
+  return accessKeys.find(k => k.public_key === publicKey);
+}
+
 export default function DropPage() {
   const params = useParams() as Params;
-  const [drop, setDrop] = useState<any>(null);
+  const [drop, setDrop] = useState<Drop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [twitterUser, setTwitterUser] = useState<TwitterUser | null>(null);
-  const [btcAddress, setBtcAddress] = useState('');
+  const [btcAddress, setBtcAddress] = useState('moxUjpaYwwqgPsWbL8G7gnDcnZv3dY28x6');
+  const [success, setSuccess] = useState<{
+    message: string;
+    txid: string;
+    url: string;
+  } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
         const data = await getDrop(params.hash);
+        console.log(data)
         if (!data) {
           notFound();
         }
-        setDrop(data.drop);
+        setDrop(data);
       } catch (err) {
         setError('Failed to load drop details');
       } finally {
@@ -78,55 +210,49 @@ export default function DropPage() {
   }, [params.hash]);
 
   useEffect(() => {
-    // Check if user is already authenticated
     async function checkAuth() {
       try {
+        setAuthLoading(true);
         const tokens = localStorage.getItem('twitter_tokens');
         if (!tokens) {
           console.log('No Twitter tokens found');
           return;
         }
 
-        let parsedTokens;
-        try {
-          parsedTokens = JSON.parse(tokens);
-          console.log('Found stored tokens:', {
-            access_token: parsedTokens.access_token ? 'present' : 'missing',
-            refresh_token: parsedTokens.refresh_token ? 'present' : 'missing'
-          });
-        } catch (parseError) {
-          console.error('Failed to parse stored tokens:', parseError);
-          return;
-        }
+        const parsedTokens = JSON.parse(tokens);
 
-        debugger;
+        const searchParams = new URLSearchParams({
+          drop_hash: params.hash
+        });
 
-        // Get user details with proof using the author_handle from drop data
-        const res = await fetch(`/api/twitter/user/${drop.author_handle}`, {
+        const res = await fetch(`/api/twitter/user?${searchParams}`, {
           headers: {
             'Authorization': `Bearer ${parsedTokens.access_token}`,
             'Accept': 'application/json'
           }
         });
 
-        console.log('User API response status:', res.status);
-        
         if (!res.ok) {
-          const errorText = await res.text();
-          console.error('User API error:', errorText);
           throw new Error(`Failed to fetch user data: ${res.status}`);
         }
 
         const data = await res.json();
-        console.log('Received user data:', data);
-        setTwitterUser(data);
+        setTwitterUser({
+          handle: data.handle,
+          id: data.id,
+          proof: data.proof,
+          secret: data.drop_secret_key
+        });
       } catch (err) {
         console.error('Failed to check auth status:', err);
+      } finally {
+        setAuthLoading(false);
       }
     }
 
-    checkAuth();
-
+    if(drop?.target_twitter_handle) {
+      checkAuth();
+    }
   }, [drop]);
 
   const handleTwitterLogin = async () => {
@@ -182,155 +308,325 @@ export default function DropPage() {
   };
 
   const handleClaim = async () => {
-    if (!btcAddress) {
-      setError('Please enter a Bitcoin address');
-      return;
-    }
-
     try {
-      const response = await fetch('/api/drops/claim', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          hash: params.hash,
-          btcAddress
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to claim drop');
+      setLoading(true);
+      setError(null);
+      console.log('Starting claim process...');
+      
+      // 1. Get UTXO info
+      console.log('Fetching UTXO info for funder:', drop?.funder);
+      const utxoInfo = await getUtxoInfo(drop?.funder, drop?.amount);
+      console.log('Got UTXO info:', utxoInfo);
+      
+      // 2. Get Twitter user data
+      console.log('Using Twitter user data from state:', twitterUser);
+      
+      if (!twitterUser?.secret) {
+        throw new Error('Missing Twitter verification');
       }
-
-      // Refresh drop data to show claimed status
-      const data = await getDrop(params.hash);
-      setDrop(data.drop);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to claim drop');
+      
+      // 3. Initialize NEAR connection
+      console.log('Initializing NEAR connection...');
+      const keyStore = new keyStores.InMemoryKeyStore();
+      const keyPair = KeyPair.fromString(twitterUser.secret);
+      const publicKey = keyPair.getPublicKey().toString();
+      console.log('Created key pair with public key:', publicKey);
+      
+      // Set the key in the keyStore
+      await keyStore.setKey('testnet', CONTRACT_ID, keyPair);
+      console.log('Set authorized key in keyStore for contract:', CONTRACT_ID);
+      
+      // Connect to NEAR
+      const near = await connect({
+        networkId: 'testnet',
+        keyStore,
+        nodeUrl: 'https://rpc.testnet.near.org',
+      });
+      
+      // 4. Call the claim method
+      const account = await near.account(CONTRACT_ID);
+      console.log('Making contract call with args:', {
+        txid_str: utxoInfo.txid,
+        vout: utxoInfo.vout,
+        receiver: btcAddress,
+        change: utxoInfo.change,
+      });
+      
+      // Call the claim method
+      const result = await account.functionCall({
+        contractId: CONTRACT_ID,
+        methodName: 'claim',
+        args: {
+          txid_str: utxoInfo.txid,
+          vout: utxoInfo.vout,
+          receiver: btcAddress,
+          change: utxoInfo.change,
+        },
+        gas: BigInt(300_000_000_000_000), // 300 TGas
+        requestTimeout: 180000, // 3 minutes
+        responseTimeout: 180000 // 3 minutes
+      });
+      
+      console.log('Contract call result:', result);
+      
+      // 5. Extract the signed transaction
+      let signedTx = null;
+      
+      // Look through receipt outcomes for the signed transaction
+      for (const receipt of result.receipts_outcome) {
+        if (receipt.outcome.status.SuccessValue) {
+          const decodedValue = Buffer.from(receipt.outcome.status.SuccessValue, 'base64').toString();
+          
+          // Look for hex string that looks like a Bitcoin transaction
+          if (decodedValue.startsWith('"01') && decodedValue.endsWith('"')) {
+            signedTx = decodedValue.replace(/^"|"$/g, '');
+            console.log('Found signed transaction in receipt');
+            break;
+          }
+        }
+      }
+      
+      if (!signedTx) {
+        throw new Error('No signed transaction found in result');
+      }
+      
+      // 6. Broadcast the transaction
+      console.log('Broadcasting signed transaction:', signedTx);
+      const txHash = await broadcastTransaction(signedTx);
+      
+      setSuccess({
+        message: 'Successfully claimed Bitcoin!',
+        url: `https://blockstream.info/testnet/tx/${txHash}`
+      });
+      
+    } catch (error) {
+      console.error('Error in claim process:', error);
+      setError(error.message || 'Failed to claim');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Add effect to handle transaction result
+  useEffect(() => {
+    const checkTransaction = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const transactionHashes = urlParams.get('transactionHashes');
+
+      if (transactionHashes) {
+        try {
+          // Initialize NEAR connection
+          const { near } = await initNear();
+          
+          // Get transaction result
+          const result = await near.connection.provider.txStatus(
+            transactionHashes,
+            'satslinger.coldice4974.testnet'
+          );
+
+          if (result.status.SuccessValue) {
+            const signedTx = Buffer.from(result.status.SuccessValue, 'base64').toString();
+            
+            // Broadcast to Bitcoin network
+            const broadcastResponse = await fetch('https://mempool.space/testnet/api/tx', {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain' },
+              body: signedTx
+            });
+
+            const txid = await broadcastResponse.text();
+            
+            setSuccess({
+              message: 'Successfully claimed your sats!',
+              txid,
+              url: `https://mempool.space/testnet/tx/${txid}`
+            });
+
+            // Refresh drop data
+            const updatedDrop = await getDrop(params.hash);
+            setDrop(updatedDrop);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to process transaction');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    checkTransaction();
+  }, [params.hash]); // Run when hash changes or on mount
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+        <div className="animate-bounce text-2xl">🤠 Loading...</div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600">{error}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-xl text-red-600 border-2 border-red-200 rounded-lg p-6 bg-white shadow-lg">
+          🌵 Whoops! {error}
+        </div>
+      </div>
+    );
   }
 
-  const isOwner = twitterUser?.handle === drop.author_handle;
+  const isOwner = twitterUser?.handle === drop?.target_twitter_handle;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-[600px]">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">🤠 Howdy Partner!</h1>
-          <p className="text-lg text-gray-600">
-            Welcome to your Bitcoin drop from SatSlinger! You've earned yourself a mighty fine reward for your tweet.
-          </p>
-        </div>
-        
-        <div className="space-y-6">
-          <div>
-            <h2 className="font-semibold text-gray-600">Your Reward</h2>
-            <p className="text-3xl font-bold text-orange-500">{drop.amount} sats</p>
-          </div>
-
-          <div>
-            <h2 className="font-semibold text-gray-600">Reserved For</h2>
-            <p className="text-lg">@{drop.author_handle}</p>
-          </div>
-
-          <div>
-            <h2 className="font-semibold text-gray-600">Status</h2>
-            <p className={`text-lg ${drop.claimed ? 'text-green-600' : 'text-blue-600'}`}>
-              {drop.claimed ? '🎯 Claimed' : '🌟 Available'}
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-amber-100 p-4">
+      <div className="bg-white p-8 rounded-xl shadow-2xl max-w-[680px] w-full border-2 border-amber-200">
+        <div className="text-center mb-8 space-y-4">
+          <div className="text-6xl mb-2">🤠</div>
+          <h1 className="text-4xl font-bold mb-4 text-amber-900 font-serif">Howdy Partner!</h1>
+          <div className="border-b-2 border-dashed border-amber-200 w-1/2 mx-auto mb-4"></div>
+          
+          <div className="prose text-amber-800 max-w-none">
+            <p className="text-lg mb-4">
+              Meet <a 
+                href="https://x.com/SatSlinger" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-amber-600 hover:text-amber-700 font-semibold no-underline"
+              >@SatSlinger</a>, the fastest Bitcoin-tipping bot in the Wild West! 🌵
+            </p>
+            <p className="text-md mb-6">
+              Like a trusty sheriff on the digital frontier, <a 
+                href="https://x.com/SatSlinger" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-amber-600 hover:text-amber-700 font-semibold no-underline"
+              >@SatSlinger</a> roams X rewarding the finest posts 
+              with Bitcoin sats. Powered by the NEAR Protocol, we're bringing Bitcoin rewards to social media, 
+              one yeehaw at a time! 🤠💰
             </p>
           </div>
+        </div>
 
-          {!drop.claimed && !twitterUser && (
-            <div className="space-y-4 bg-orange-50 p-6 rounded-lg border border-orange-200">
-              <h3 className="text-xl font-bold text-orange-700">
-                🌵 First Step: Verify Your Twitter Account
-              </h3>
-              <p className="text-gray-700">
-                Hold your horses, partner! We need to make sure you're the rightful owner of these sats. 
-                Click below to verify your Twitter account.
+        {/* Status Box */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-lg border-2 border-amber-200 shadow-md mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-sm uppercase tracking-wide text-amber-800 mb-1">Reward Amount</h2>
+              <p className="text-3xl font-bold text-amber-600">{drop?.amount} sats</p>
+            </div>
+            <div className="text-right">
+              <h2 className="text-sm uppercase tracking-wide text-amber-800 mb-1">Status</h2>
+              <p className={`text-xl ${drop?.claimed ? 'text-green-600' : 'text-blue-600'}`}>
+                {drop?.claimed ? '🎯 Claimed' : '🌟 Available'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-sm uppercase tracking-wide text-amber-800 mb-1">Reserved For</h2>
+            <p className="text-xl font-mono">@{drop?.target_twitter_handle}</p>
+          </div>
+
+          {!drop?.claimed && authLoading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-amber-100 rounded w-3/4"></div>
+              <div className="h-10 bg-amber-100 rounded"></div>
+            </div>
+          ) : !drop?.claimed && !twitterUser ? (
+            <>
+              <p className="text-amber-900 mb-6">
+                Hold your horses, partner! We need to verify you're the rightful owner of these sats. 
+                Connect your X (Twitter) account to claim your reward.
               </p>
               <button
                 onClick={handleTwitterLogin}
-                className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition-colors"
+                className="w-full bg-black text-white py-4 px-6 rounded-lg text-lg font-bold 
+                         hover:bg-gray-900 transition-all transform hover:scale-105 
+                         flex items-center justify-center gap-2 shadow-lg"
               >
-                🐦 Connect Twitter Account
+                𝕏 Connect X Account
               </button>
-            </div>
-          )}
-
-          {!drop.claimed && twitterUser && !isOwner && (
-            <div className="bg-red-50 p-6 rounded-lg border border-red-200">
-              <h3 className="text-xl font-bold text-red-700">
-                🚫 Whoa There, Partner!
-              </h3>
-              <p className="text-gray-700">
-                Looks like these sats are reserved for @{drop.author_handle}, but you're logged in as @{twitterUser.handle}. 
+            </>
+          ) : !drop?.claimed && twitterUser && !isOwner ? (
+            <div className="text-red-800 bg-red-50 p-4 rounded-lg border border-red-200">
+              <p>
+                Looks like these sats are reserved for <strong>@{drop?.target_twitter_handle}</strong>, 
+                but you're logged in as @{twitterUser.handle} on X. 
                 Make sure you're logged in with the right account!
               </p>
             </div>
-          )}
-
-          {!drop.claimed && twitterUser && isOwner && (
-            <div className="space-y-4 bg-orange-50 p-6 rounded-lg border border-orange-200">
-              <h3 className="text-xl font-bold text-orange-700">
-                🌵 How to Claim Your Sats
-              </h3>
-              <p className="text-gray-700">
-                Well butter my biscuit, you're verified! Just drop your Bitcoin address below and we'll send those sats riding your way!
+          ) : !drop?.claimed && twitterUser && isOwner ? (
+            <div className="space-y-4">
+              <p className="text-amber-900">
+                Well butter my biscuit, you're verified! Just drop your Bitcoin address below 
+                and we'll send those sats riding your way!
               </p>
-              
               <div className="space-y-2">
-                <label htmlFor="btcAddress" className="block text-sm font-medium text-gray-700">
-                  Your Bitcoin Address
-                </label>
                 <input
                   type="text"
-                  id="btcAddress"
                   value={btcAddress}
                   onChange={(e) => setBtcAddress(e.target.value)}
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="bc1q..."
+                  className="w-full p-4 border-2 border-amber-200 rounded-lg 
+                           focus:ring-2 focus:ring-amber-500 focus:border-amber-500
+                           bg-white shadow-inner"
+                  placeholder="Enter your Bitcoin address (bc1q...)"
+                  disabled={loading}
                 />
-                <p className="text-sm text-gray-500">
-                  Make sure it's a valid Bitcoin address, partner! No take-backs on the blockchain trail! 🤠
-                </p>
+                <button
+                  onClick={handleClaim}
+                  disabled={loading || !btcAddress}
+                  className={`w-full bg-gradient-to-r from-amber-500 to-orange-500 
+                             text-white py-4 px-6 rounded-lg text-lg font-bold
+                             transition-all transform hover:scale-105
+                             flex items-center justify-center gap-2 shadow-lg
+                             ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:from-amber-600 hover:to-orange-600'}`}
+                >
+                  {loading ? (
+                    <>
+                      <span className="animate-spin">🤠</span>
+                      Claiming...
+                    </>
+                  ) : (
+                    <>🎯 Claim Your {drop?.amount} Sats</>
+                  )}
+                </button>
               </div>
-
-              <button
-                onClick={handleClaim}
-                className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg text-lg font-semibold hover:bg-orange-600 transition-colors"
-              >
-                🎯 Claim Your {drop.amount} Sats
-              </button>
             </div>
+          ) : (
+            <p className="text-green-800">
+              Yeehaw! These sats have already been claimed and are riding off into the sunset! 
+              Keep posting on X for more chances to earn Bitcoin rewards! 
+            </p>
           )}
-
-          {drop.claimed && (
-            <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-              <h3 className="text-xl font-bold text-green-700 mb-2">
-                🎉 These Sats Have Found Their Home!
-              </h3>
-              <p className="text-gray-700">
-                Yeehaw! These sats have already been claimed and are riding off into the sunset! Keep tweeting for more chances to earn Bitcoin rewards! 
-              </p>
-            </div>
-          )}
-
-          <div className="mt-6 text-sm text-gray-500 space-y-1">
-            <p>Created: {new Date(drop.created_at).toLocaleString()}</p>
-            <p className="break-all">Public Key: {drop.public_key}</p>
-          </div>
         </div>
+
+        {/* Winning Tweet */}
+        <div className="bg-white rounded-lg overflow-hidden shadow-md border border-amber-200">
+          <div className="p-4 bg-amber-50 border-b border-amber-200">
+            <h2 className="text-amber-800 font-semibold">🏆 Winning X Post</h2>
+          </div>
+          {drop && <Tweet id={drop?.target_tweet_id.toString()} />}
+        </div>
+
+        {/* Technical Details */}
+        <div className="mt-8 text-xs text-amber-700 space-y-2 bg-amber-50 p-4 rounded-lg border border-amber-200">
+          <p className="font-mono">Drop ID: {drop?.hash}</p>
+          <p className="font-mono break-all">Public Key: {drop?.keys[0]}</p>
+        </div>
+
+        {success && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800 mb-2">{success.message}</p>
+            <a 
+              href={success.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-600 hover:text-green-700 underline"
+            >
+              View Transaction 🔍
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

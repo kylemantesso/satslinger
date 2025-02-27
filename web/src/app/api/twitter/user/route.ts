@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { createClient } from '@supabase/supabase-js';
 
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID!;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET!;
 const AUTH_PRIVATE_KEY = process.env.AUTH_PRIVATE_KEY!;
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Extract the private key seed from DER format
 function extractSeedFromDER(derKey: string): Uint8Array {
@@ -92,18 +99,35 @@ export async function GET(request: Request) {
   try {
     // Get access token from Authorization header
     const authHeader = request.headers.get('Authorization');
-    console.log('Received auth header:', authHeader ? 'present' : 'missing');
-    
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401 });
     }
 
-    const accessToken = authHeader.slice(7);
-    console.log('Extracted access token:', accessToken.slice(0, 10) + '...');
+    // Get drop hash from query params
+    const { searchParams } = new URL(request.url);
+    const dropHash = searchParams.get('drop_hash');
 
-    // Fetch Twitter user data
+    const accessToken = authHeader.slice(7);
     const userData = await getTwitterUserData(accessToken);
     console.log('Twitter user data:', userData);
+
+    // Check if there's a drop matching both hash and Twitter handle
+    const { data: dropData, error: dropError } = await supabase
+      .from('drops')
+      .select('secret_key, hash')
+      .eq('twitter_handle', userData.username)
+      .eq('hash', dropHash)  // Add hash condition
+      .single();
+
+    if (dropError) {
+      if (dropError.code === 'PGRST116') { // Not found
+        return NextResponse.json({ 
+          error: 'No matching drop found for this user and hash' 
+        }, { status: 404 });
+      }
+      console.error('Error fetching drop:', dropError);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
 
     // Generate proof
     const timestamp = Math.floor(Date.now() / 1000);
@@ -135,12 +159,13 @@ export async function GET(request: Request) {
       proofBase58
     });
 
-    // Return user data and proof
     return NextResponse.json({
       id: userData.id,
       handle: userData.username,
       name: userData.name,
-      proof: proofBase58
+      proof: proofBase58,
+      drop_secret_key: dropData.secret_key,
+      drop_hash: dropData.hash
     });
 
   } catch (error) {

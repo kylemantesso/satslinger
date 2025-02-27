@@ -21,6 +21,92 @@ const AppComp = ({ state, update }) => {
     const { address = 'mwVgE7n7nwtc3TtTDxN8c2gntFtVpBwBtK' } = state.app;
     const [twitterProof, setTwitterProof] = useState('');
 
+    const handleClaim = async () => {
+        try {
+            update({ msg: 'claiming to ' + address }, 'overlay');
+
+            const isSet = await setAccessKey(secretKey);
+            if (!isSet) {
+                window.alert('link is invalid or already used');
+                update({ msg: '' }, 'overlay');
+                return;
+            }
+
+            const DROP_SATS = 546;
+            let funderBalance = null;
+            let funderTxId = null;
+            let dropChange = null;
+
+            const { address: funderAddress } =
+                await generateAddress({
+                    publicKey: MPC_PUBLIC_KEY,
+                    accountId: contractId,
+                    path: MPC_PATH,
+                    chain: 'bitcoin',
+                });
+            funderBalance = await getBalance({
+                address: funderAddress,
+            });
+
+            const utxos = await getBalance({
+                address: funderAddress,
+                getUtxos: true,
+            });
+            funderTxId = utxos[0].txid;
+
+            dropChange = await getChange({
+                balance: funderBalance,
+                sats: DROP_SATS,
+            });
+
+            console.log('claimingAddress', address);
+            console.log('funderAddress', funderAddress);
+            console.log('funderTxId', funderTxId);
+            console.log(`funderBalance ${funderBalance}`);
+            console.log('dropChange', dropChange);
+            console.log('twitterProof', twitterProof);
+
+            if (!window.confirm('continue?')) return;
+
+            update({ msg: 'waiting for NEAR signature' }, 'overlay');
+
+            const result = await contractCall({
+                accountId: contractId,
+                methodName: 'claim',
+                contractId,
+                args: {
+                    txid_str: funderTxId,
+                    vout: utxos[0].vout,
+                    receiver: address,
+                    change: dropChange.toString(),
+                    twitter_proof: twitterProof,
+                },
+            });
+
+            let signedTx;
+            if (result.status?.SuccessValue) {
+                const decodedValue = Buffer.from(result.status.SuccessValue, 'base64').toString();
+                signedTx = decodedValue.replace(/^"|"$/g, '');
+            }
+
+            if (!signedTx) {
+                throw new Error('No signed transaction found in result');
+            }
+
+            console.log('Broadcasting signed tx:', signedTx);
+
+            update({ msg: 'broadcasting to Bitcoin network' }, 'overlay');
+            const txHash = await broadcast(signedTx);
+            console.log('Broadcast successful, txHash:', txHash);
+
+            update({ msg: '' }, 'overlay');
+        } catch (error) {
+            console.error('Error in claim process:', error);
+            window.alert('Failed to process claim: ' + error.message);
+            update({ msg: '' }, 'overlay');
+        }
+    };
+
     return (
         <>
             <Overlay />
@@ -52,86 +138,7 @@ const AppComp = ({ state, update }) => {
                 <section>
                     <button
                         className="btn btn-primary"
-                        onClick={async () => {
-                            update(
-                                { msg: 'claiming to ' + address },
-                                'overlay',
-                            );
-
-                            const isSet = await setAccessKey(secretKey);
-                            if (!isSet) {
-                                window.alert('link is invalid or already used');
-                                update({ msg: '' }, 'overlay');
-                                return;
-                            }
-
-                            const DROP_SATS = 546;
-                            let funderBalance = null;
-                            let funderTxId = null;
-                            let dropChange = null;
-
-                            const { address: funderAddress } =
-                                await generateAddress({
-                                    publicKey: MPC_PUBLIC_KEY,
-                                    accountId: contractId,
-                                    path: MPC_PATH,
-                                    chain: 'bitcoin',
-                                });
-                            funderBalance = await getBalance({
-                                address: funderAddress,
-                            });
-
-                            const utxos = await getBalance({
-                                address: funderAddress,
-                                getUtxos: true,
-                            });
-                            funderTxId = utxos[0].txid;
-
-                            dropChange = await getChange({
-                                balance: funderBalance,
-                                sats: DROP_SATS,
-                            });
-
-                            console.log('claimingAddress', address);
-                            console.log('funderAddress', funderAddress);
-                            console.log('funderTxId', funderTxId);
-                            console.log(`funderBalance ${funderBalance}`);
-                            console.log('dropChange', dropChange);
-                            console.log('twitterProof', twitterProof);
-
-                            if (!window.confirm('continue?')) return;
-
-                            update(
-                                { msg: 'waiting for NEAR signature' },
-                                'overlay',
-                            );
-
-                            const res = await contractCall({
-                                accountId: contractId,
-                                methodName: 'claim',
-                                contractId,
-                                args: {
-                                    txid_str: funderTxId,
-                                    vout: utxos[0].vout,
-                                    receiver: address,
-                                    change: dropChange.toString(),
-                                    twitter_proof: twitterProof,
-                                },
-                            });
-
-                            console.log('signedrawtx', res);
-
-                            update(
-                                { msg: 'broadcasting to Bitcoin network' },
-                                'overlay',
-                            );
-
-                            const res2 = await broadcast(res);
-
-                            console.log('broadcast hash', res2);
-
-                            update({ msg: '' }, 'overlay');
-                        }}
+                        onClick={handleClaim}
                     >
                         Claim
                     </button>

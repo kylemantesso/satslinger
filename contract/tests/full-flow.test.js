@@ -1,195 +1,247 @@
 import test from 'ava';
 import fs from 'fs';
+import * as EC from 'elliptic';
+const ec = EC.default ? new EC.default.ec('secp256k1') : new EC.ec('secp256k1');
 import * as dotenv from 'dotenv';
 dotenv.config();
 const {
-    NEAR_ACCOUNT_ID: accountId,
-    LINKDROP_CONTRACT_ID: contractId,
-    MPC_PUBLIC_KEY,
-    MPC_PATH,
+    accountId,
+    REACT_APP_contractId: contractId,
+    REACT_APP_MPC_PUBLIC_KEY: MPC_PUBLIC_KEY,
+    REACT_APP_MPC_PATH: MPC_PATH,
 } = process.env;
 import { generateAddress } from './kdf.js';
-import { contractView, contractCall, getAccount } from './near-provider.js';
-import { generateSeedPhrase } from 'near-seed-phrase';
+import {
+    getAccount,
+    contractView,
+    contractCall,
+    keyPair,
+    keyStore,
+    networkId,
+} from './near-provider.js';
+import { broadcast, getBalance, getChange } from './bitcoin.js';
+
 import * as nearAPI from 'near-api-js';
 const { KeyPair } = nearAPI;
+const dropKeyPair = KeyPair.fromString(
+    'ed25519:4Da461pSxbSX8pc8L2SiQMwgHJJBYEovMVp7XgZRZLVbf1sk8pu139ie89MftYEQBJtN5dLc349FPXgUyBBE1mp1',
+);
 
-function btcToSatoshis(btc) {
-    return Math.floor(parseFloat(btc) * 100000000).toString();
-}
-
-
-// List of methods that should exist in the contract
-const REQUIRED_METHODS = [
-    'create_campaign',
-    'add_drop',
-    'get_campaign',
-    'get_campaign_drops',
-    'get_drop',
-    'claim'
-];
-
-// Create a key pair for the drop
-const { secretKey: dropSecret } = generateSeedPhrase();
-const dropKeyPair = KeyPair.fromString(dropSecret);
-
-// Test variables
+const DROP_SATS = 546;
+// based on MPC_PATH, will be set by tests
+let funderPublicKey = null;
 let funderAddress = null;
-let campaignId = null;
+let funderBalance = null;
+let funderTxId = null;
+let funderUtxoOut = null;
+let dropChange = null;
 
-// Verify contract is deployed and initialized
-test('verify contract deployment', async (t) => {
+test('delete, create contract account', async (t) => {
     try {
-        // Check if contract account exists
         const account = getAccount(contractId);
-        const state = await account.state();
-        console.log('\nContract state:', state);
-        
-        // Check if contract has code
-        t.true(state.code_hash !== '11111111111111111111111111111111');
-        
-        // Check each required method exists
-        for (const method of REQUIRED_METHODS) {
-            try {
-                await contractView({
-                    contractId,
-                    methodName: method,
-                    args: method.startsWith('get_') ? { campaign_id: 0 } : {},
-                });
-            } catch (e) {
-                // We expect certain errors, but not MethodNotFound
-                if (e.message.includes('MethodNotFound')) {
-                    t.fail(`Required method ${method} not found in contract`);
-                }
-                if (e.type === 'MethodNotFound') {
-                    t.fail(`Required method ${method} not found in contract`);
-                }
-            }
-        }
-        
-        console.log('\nAll required methods exist in contract');
-        t.pass();
+        await account.deleteAccount(accountId);
     } catch (e) {
-        if (e.message.includes('does not exist')) {
-            t.fail('Contract account does not exist');
-        } else if (e.message.includes('no code')) {
-            t.fail('Contract has no code deployed');
-        } else if (e.type === 'AccountDoesNotExist') {
-            t.fail('Contract account does not exist');
-        } else {
-            console.log('Unexpected error:', e);
-            t.fail('Unexpected error checking contract');
-        }
+        console.log('error deleteAccount', e);
     }
+
+    try {
+        const account = getAccount(accountId);
+        await account.createAccount(
+            contractId,
+            keyPair.getPublicKey(),
+            nearAPI.utils.format.parseNearAmount('10'),
+        );
+    } catch (e) {
+        console.log('error createAccount', e);
+    }
+    t.pass();
 });
 
-// Generate funding address for campaign
-test(`generate funding address`, async (t) => {
+test('deploy contract', async (t) => {
+    const file = fs.readFileSync('./contract/target/near/contract.wasm');
+    const account = getAccount(contractId);
+    await account.deployContract(file);
+    console.log('deployed bytes', file.byteLength);
+    const balance = await account.getAccountBalance();
+    console.log('contract balance', balance);
+
+    t.pass();
+});
+
+test('init contract', async (t) => {
+    await contractCall({
+        contractId,
+        methodName: 'init',
+        args: {
+            owner_id: accountId,
+        },
+    });
+
+    t.pass();
+});
+
+// KDF and args for drop claim
+
+test(`funder public key with path: ${MPC_PATH}`, async (t) => {
     const { address, publicKey } = await generateAddress({
         publicKey: MPC_PUBLIC_KEY,
         accountId: contractId,
         path: MPC_PATH,
         chain: 'bitcoin',
     });
-    console.log('\nFunding address:', address);
+    console.log('\n\n');
+    console.log('funderAddress', address);
+    console.log('funderPublicKey', publicKey);
+
     funderAddress = address;
+    funderPublicKey = publicKey;
+
     t.true(!!funderAddress);
-});
-
-// Create campaign
-test('create campaign', async (t) => {
-    const res = await contractCall({
-        contractId,
-        methodName: 'create_campaign',
-        args: {
-            funding_address: funderAddress,
-            search_terms: ['test', 'test2'],
-            instruction: 'Follow and retweet to receive sats!',
-            twitter_handle: 'example_user',
-        },
-    });
-    console.log('Campaign ID:', res);
-    campaignId = res;
-    t.true(!!res);
-});
-
-// Verify campaign was created
-test('get campaign', async (t) => {
-    const campaign = await contractView({
-        contractId,
-        methodName: 'get_campaign',
-        args: { campaign_id: parseInt(campaignId) },
-    });
-    t.is(campaign.funding_address, funderAddress);
-    t.is(campaign.twitter_handle, 'example_user');
-    t.deepEqual(campaign.search_terms, ['test', 'test2']);
-    t.is(campaign.instruction, 'Follow and retweet to receive sats!');
-});
-
-// Create drop
-test('add drop', async (t) => {
-    await contractCall({
-        accountId,
-        contractId,
-        methodName: 'add_drop',
-        args: {
-            campaign_id: parseInt(campaignId),
-            amount: btcToSatoshis("0.000546"), // Convert to satoshis (54600)
-            target_twitter_handle: "example_user",
-            key: dropKeyPair.getPublicKey().toString(),
-        },
-    });
+    t.true(!!funderPublicKey);
     t.pass();
 });
 
-// Verify drop was created
-test('get campaign drops', async (t) => {
-    const drops = await contractView({
-        contractId,
-        methodName: 'get_campaign_drops',
-        args: { 
-            campaign_id: parseInt(campaignId),
-        },
-    });
-    console.log('Campaign drops:', drops);
-    t.true(drops.length > 0);
+test(`get balance for funderAddress`, async (t) => {
+    funderBalance = await getBalance({ address: funderAddress });
+    console.log(`funder balance ${funderBalance}`);
+    t.true(parseInt(funderBalance) > 100000);
+    t.pass();
 });
 
-// Verify drop details
-test('get drop', async (t) => {
-    const drops = await contractView({
-        contractId,
-        methodName: 'get_campaign_drops',
-        args: { 
-            campaign_id: parseInt(campaignId),
-        },
-    });
-    
-    // Get the first drop ID
-    const dropId = drops[0];
-    
-    const drop = await contractView({
-        contractId,
-        methodName: 'get_drop',
-        args: { 
-            drop_id: dropId,
-        },
-    });
-    
-    console.log('Drop details:', drop);
-    t.is(drop.campaign_id, parseInt(campaignId));
-    t.is(drop.target_twitter_handle, "example_user");
+test(`get utxos for funderAddress`, async (t) => {
+    const utxos = await getBalance({ address: funderAddress, getUtxos: true });
+    // console.log(`funder max value utxo ${JSON.stringify(utxos[0])}`);
+    funderTxId = utxos[0].txid;
+    funderUtxoOut = utxos[0].vout;
+    t.true(!!funderTxId);
+    t.pass();
 });
 
-// Save drop link for later use
-test('save drop link', async (t) => {
-    const path = `keys-${Date.now()}.txt`;
-    fs.writeFileSync(
-        path,
-        Buffer.from(
-            `http://localhost:1234/?contractId=${contractId}&secretKey=${dropSecret}&from=Matt`,
-        ),
-    );
-    console.log('\nDrop link saved to:', path);
+test(`get change for drop tx`, async (t) => {
+    dropChange = await getChange({
+        balance: funderBalance,
+        sats: DROP_SATS,
+    });
+    console.log('drop change', dropChange);
+    t.true(dropChange > 0);
+    t.pass();
+});
+
+test('add drop', async (t) => {
+    await contractCall({
+        contractId,
+        methodName: 'add_drop',
+        args: {
+            target: 1,
+            amount: DROP_SATS.toString(), // sats
+            funder: funderPublicKey,
+            path: MPC_PATH,
+        },
+    });
+
+    t.pass();
+});
+
+test('add drop key', async (t) => {
+    await contractCall({
+        contractId,
+        methodName: 'add_drop_key',
+        args: {
+            drop_id: '1',
+            key: dropKeyPair.getPublicKey().toString(),
+        },
+    });
+
+    t.pass();
+});
+
+test('get contract access keys', async (t) => {
+    const account = getAccount(contractId);
+    const keys = await account.getAccessKeys();
+    console.log(keys);
+
+    t.is(keys.length, 2);
+    t.pass();
+});
+
+test('view drops', async (t) => {
+    const res = await contractView({
+        contractId,
+        methodName: 'get_drops',
+        args: {},
+    });
+
+    t.is(res.length, 1);
+    t.pass();
+});
+
+test('view drop keys', async (t) => {
+    const res = await contractView({
+        contractId,
+        methodName: 'get_keys',
+        args: {
+            drop_id: '1',
+        },
+    });
+
+    t.is(res.length, 1);
+    t.pass();
+});
+
+test('claim drop', async (t) => {
+    // switch to dropKeyPair for contractId account
+    keyStore.setKey(networkId, contractId, dropKeyPair);
+
+    const res = await contractCall({
+        accountId: contractId, // caller of method is contractId with dropKeyPair
+        contractId,
+        methodName: 'claim',
+        args: {
+            txid_str: funderTxId,
+            vout: funderUtxoOut,
+            receiver: funderAddress,
+            change: dropChange.toString(),
+        },
+    });
+
+    console.log('\n\nraw signed transaction:\n\n', res);
+    console.log('\n\n');
+    console.log('!!! NOT BROADCAST !!! \n\n');
+    console.log('\n\n');
+
+    // Check if the transaction has a valid signature format - should start with '48'
+    if (res && typeof res === 'string') {
+        // Find the signature portion which should be after the first few bytes
+        const sigStartIndex = res.indexOf('8b48'); // Look for the script length marker followed by signature marker
+        if (sigStartIndex > 0) {
+            const sigPortion = res.substring(sigStartIndex + 2, sigStartIndex + 140); // Approximate length of signature
+            console.log('Signature portion:', sigPortion);
+            t.true(sigPortion.startsWith('3045')); // DER sequence marker and length
+        }
+    }
+
+    // broadcast(res);
+
+    t.pass();
+});
+
+test('get contract access keys 2', async (t) => {
+    const account = getAccount(contractId);
+    const keys = await account.getAccessKeys();
+
+    t.is(keys.length, 1);
+    t.pass();
+});
+
+test('view drop keys 2', async (t) => {
+    const res = await contractView({
+        contractId,
+        methodName: 'get_keys',
+        args: {
+            drop_id: '1',
+        },
+    });
+
+    t.is(res.length, 0);
     t.pass();
 });
