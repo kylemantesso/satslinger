@@ -1,12 +1,12 @@
 {
   "address": "mxbTAxP3RKhyokeQgXWhU7xHnTyxgZ1784",
   "publicKey": "04d0f396ae4b64723c141f414b807dc12340502fff15320a84ec7eae3f5c996cefa6186b90cfbfe77d8c76a167ead7a917a48aa3d1c5771d649c0d3d0a90da39ba",
-  "balance": 18796,
+  "balance": 12412,
   "utxos": [
     {
-      "txid": "0a8708ee58702380c9e42b2b6da091e6eee5ca91435a80a04070ceb4b3dc7f7c",
+      "txid": "8cc75641b6ddfdee895f94477e946212aec654399583d233c65296dab1ea0d41",
       "vout": 1,
-      "value": 18796
+      "value": 12412
     }
   ],
   "campaignId": "0"

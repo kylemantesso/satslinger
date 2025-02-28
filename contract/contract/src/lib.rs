@@ -46,8 +46,6 @@ pub struct Drop {
     target_twitter_handle: String,
     target_tweet_id: String,
     hash: String,
-    claimed: bool,
-    claimed_by: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -137,8 +135,6 @@ impl Contract {
             target_twitter_handle,
             target_tweet_id,
             hash: hash.clone(),
-            claimed: false,
-            claimed_by: None,
         };
 
         self.drops.insert(hash, drop);
@@ -283,8 +279,8 @@ impl Contract {
 
     #[private]
     pub fn remove_key_callback(&mut self) {
-        // let key = String::from(&env::signer_account_pk());
-        // self.remove_key_internal(key);
+        let key = String::from(&env::signer_account_pk());
+        self.remove_key_internal(key);
     }
 
     fn remove_key_internal(&mut self, key: String) {

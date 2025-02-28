@@ -289,29 +289,49 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-async function sendTweetReply(text: string, reply_to_tweet_id: string) {
+// Add this function to handle sending tweet replies
+async function sendTweetReply(tweetText: string, inReplyToTweetId: string) {
   try {
+    // For testing, always reply to this tweet ID
+    const hardcodedTweetId = "896618952914124800";
+    
+    console.log(`Sending reply to tweet ID ${hardcodedTweetId} with text: ${tweetText}`);
+    
+    // Get OAuth access token
     const access_token = await getAccessToken();
-
-    const response = await fetch('https://api.twitter.com/2/tweets', {
+    
+    // Twitter API v2 endpoint for creating tweets
+    const url = 'https://api.twitter.com/2/tweets';
+    
+    // Prepare the request body
+    const requestBody = {
+      text: tweetText,
+      reply: {
+        in_reply_to_tweet_id: hardcodedTweetId
+      }
+    };
+    
+    // Make the request to Twitter API using OAuth access token
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${access_token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        text,
-        reply: { in_reply_to_tweet_id: reply_to_tweet_id }
-      })
+      body: JSON.stringify(requestBody)
     });
-
+    
+    // Parse the response
+    const data = await response.json();
+    
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Twitter API error:', error);
-      throw new Error(error.detail || 'Failed to send tweet');
+      console.error('Twitter API error:', data);
+      throw new Error(`Failed to send tweet: ${data.detail || 'Unknown error'}`);
     }
-
-    return await response.json();
+    
+    console.log('Successfully sent reply tweet:', data);
+    return data;
+    
   } catch (error) {
     console.error('Error sending tweet reply:', error);
     throw error;
@@ -494,6 +514,14 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
       campaignId: campaignResult.campaignId,
       twitterHandle: twitterHandle
     });
+
+    // Send a tweet reply to notify the user
+    try {
+      await sendTweetReply(evaluation.reply, winningTweet.id);
+      console.log(`Sent tweet reply about drop to @${twitterHandle}`);
+    } catch (tweetError) {
+      console.error('Failed to send tweet reply:', tweetError);
+    }
 
     return {
       campaignId: campaignResult.campaignId,

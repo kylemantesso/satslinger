@@ -39,31 +39,41 @@ type Drop = {
 
 async function getDrop(hash: string) {
   try {
+    console.log('Fetching drop data for hash:', hash);
+    
+    // Create the request body
+    const requestBody = {
+      jsonrpc: '2.0',
+      id: 'dontcare',
+      method: 'query',
+      params: {
+        request_type: 'call_function',
+        finality: 'final',
+        account_id: 'satslinger.coldice4974.testnet',
+        method_name: 'get_drop',
+        args_base64: btoa(JSON.stringify({ hash }))
+      }
+    };
+    
+    console.log('Request body:', requestBody);
+    
     // Connect directly to NEAR RPC
     const response = await fetch('https://rpc.testnet.near.org', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'dontcare',
-        method: 'query',
-        params: {
-          request_type: 'call_function',
-          finality: 'final',
-          account_id: 'satslinger.coldice4974.testnet',
-          method_name: 'get_drop',
-          args_base64: btoa(JSON.stringify({ hash }))
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
+    console.log('Response status:', response.status);
+    
     if (!response.ok) {
-      throw new Error('Failed to connect to NEAR RPC');
+      throw new Error(`Failed to connect to NEAR RPC: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
+    console.log('RPC response:', result);
     
     if (result.error) {
       console.error('NEAR RPC error:', result.error);
@@ -72,14 +82,28 @@ async function getDrop(hash: string) {
 
     // Parse the result - NEAR returns base64 encoded JSON
     const resultBytes = result.result.result;
+    console.log('Result bytes:', resultBytes);
+    
+    if (!resultBytes || !resultBytes.length) {
+      console.log('Empty result bytes, drop may not exist');
+      return null;
+    }
+    
     const resultString = new TextDecoder().decode(
       new Uint8Array(resultBytes.map((x: number) => x))
     );
     
-    // If empty result, drop doesn't exist
-    if (!resultString) return null;
+    console.log('Decoded result string:', resultString);
     
-    return JSON.parse(resultString);
+    // If empty result, drop doesn't exist
+    if (!resultString) {
+      console.log('Empty result string after decoding');
+      return null;
+    }
+    
+    const parsedResult = JSON.parse(resultString);
+    console.log('Parsed drop data:', parsedResult);
+    return parsedResult;
   } catch (error) {
     console.error('Error fetching drop from NEAR:', error);
     return null;
@@ -394,8 +418,13 @@ export default function DropPage() {
       console.log('Broadcasting signed transaction:', signedTx);
       const txHash = await broadcastTransaction(signedTx);
       
+      // Add this: Fetch the updated drop status
+      const updatedDrop = await getDrop(params.hash);
+      setDrop(updatedDrop);
+      
       setSuccess({
         message: 'Successfully claimed Bitcoin!',
+        txid: txHash,
         url: `https://blockstream.info/testnet/tx/${txHash}`
       });
       
@@ -457,6 +486,23 @@ export default function DropPage() {
     checkTransaction();
   }, [params.hash]); // Run when hash changes or on mount
 
+  // Add this polling effect after a successful transaction
+  useEffect(() => {
+    if (success) {
+      const pollInterval = setInterval(async () => {
+        const updatedDrop = await getDrop(params.hash);
+        // Check if keys array is empty, indicating the drop has been claimed
+        if (updatedDrop && (!updatedDrop.keys || updatedDrop.keys.length === 0)) {
+          setDrop(updatedDrop);
+          clearInterval(pollInterval);
+        }
+      }, 5000); // Poll every 5 seconds
+      
+      // Clear interval on component unmount
+      return () => clearInterval(pollInterval);
+    }
+  }, [success, params.hash]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
@@ -476,6 +522,7 @@ export default function DropPage() {
   }
 
   const isOwner = twitterUser?.handle === drop?.target_twitter_handle;
+  const isDropClaimed = !drop?.keys || drop.keys.length === 0;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-orange-50 to-amber-100 p-4">
@@ -516,8 +563,8 @@ export default function DropPage() {
             </div>
             <div className="text-right">
               <h2 className="text-sm uppercase tracking-wide text-amber-800 mb-1">Status</h2>
-              <p className={`text-xl ${drop?.claimed ? 'text-green-600' : 'text-blue-600'}`}>
-                {drop?.claimed ? '🎯 Claimed' : '🌟 Available'}
+              <p className={`text-xl ${isDropClaimed ? 'text-green-600' : 'text-blue-600'}`}>
+                {isDropClaimed ? '🎯 Claimed' : '🌟 Available'}
               </p>
             </div>
           </div>
@@ -527,12 +574,12 @@ export default function DropPage() {
             <p className="text-xl font-mono">@{drop?.target_twitter_handle}</p>
           </div>
 
-          {!drop?.claimed && authLoading ? (
+          {!isDropClaimed && authLoading ? (
             <div className="animate-pulse space-y-4">
               <div className="h-4 bg-amber-100 rounded w-3/4"></div>
               <div className="h-10 bg-amber-100 rounded"></div>
             </div>
-          ) : !drop?.claimed && !twitterUser ? (
+          ) : !isDropClaimed && !twitterUser ? (
             <>
               <p className="text-amber-900 mb-6">
                 Hold your horses, partner! We need to verify you're the rightful owner of these sats. 
@@ -547,7 +594,7 @@ export default function DropPage() {
                 𝕏 Connect X Account
               </button>
             </>
-          ) : !drop?.claimed && twitterUser && !isOwner ? (
+          ) : !isDropClaimed && twitterUser && !isOwner ? (
             <div className="text-red-800 bg-red-50 p-4 rounded-lg border border-red-200">
               <p>
                 Looks like these sats are reserved for <strong>@{drop?.target_twitter_handle}</strong>, 
@@ -555,7 +602,7 @@ export default function DropPage() {
                 Make sure you're logged in with the right account!
               </p>
             </div>
-          ) : !drop?.claimed && twitterUser && isOwner ? (
+          ) : !isDropClaimed && twitterUser && isOwner ? (
             <div className="space-y-4">
               <p className="text-amber-900">
                 Well butter my biscuit, you're verified! Just drop your Bitcoin address below 
