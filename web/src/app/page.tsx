@@ -1,103 +1,115 @@
 import Image from "next/image";
 
-export default async function Home() {
-
+export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-100">
+      <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
+        {/* Hero Section */}
+        <div className="text-center mb-16">
+          <div className="text-8xl mb-6">🤠</div>
+          <h1 className="text-5xl font-bold text-amber-900 mb-4 font-serif">
+            Howdy, Partner!
+          </h1>
+          <p className="text-xl text-amber-800 mb-8">
+            Welcome to the wildest Bitcoin-tipping saloon on the digital frontier!
+          </p>
+          
+          {/* Hackathon Badge */}
+          <div className="inline-block bg-amber-100 border-2 border-amber-300 rounded-full px-4 py-2 text-amber-800">
+            <a href="https://devpost.com/software/saslinger" target="_blank" rel="noopener noreferrer" className="hover:underline">
+              🏆 Entry in NEAR Protocol's One Trillion Agents Hackathon
+            </a>
+          </div>
         </div>
-       
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Main Content */}
+        <div className="bg-white rounded-xl shadow-2xl p-8 border-2 border-amber-200">
+          <div className="prose prose-lg max-w-none text-amber-800">
+            <h2 className="text-3xl font-bold text-amber-900 mb-6">
+              What in Tarnation is SatSlinger? 🌵
+            </h2>
+            
+            <p className="mb-6">
+              Like a trusty sheriff patrolling the digital plains, SatSlinger roams 
+              X rewarding the finest posts with Bitcoin sats using 
+              NEAR Protocol's Chain Signatures. We're bringing Wild West justice to 
+              social media, one tip at a time!
+            </p>
+
+            <div className="border-b-2 border-dashed border-amber-200 my-8"></div>
+
+            <h3 className="text-2xl font-bold text-amber-900 mb-4">
+              How It Works 🎯
+            </h3>
+
+            <div className="grid gap-6 md:grid-cols-3 mb-8">
+              <div className="bg-amber-50 p-6 rounded-lg">
+                <div className="text-4xl mb-2">🔍</div>
+                <h4 className="font-bold mb-2">Scout</h4>
+                <p className="text-sm">
+                  We scout the territory for the most engaging posts on X
+                </p>
+              </div>
+              
+              <div className="bg-amber-50 p-6 rounded-lg">
+                <div className="text-4xl mb-2">💰</div>
+                <h4 className="font-bold mb-2">Reward</h4>
+                <p className="text-sm">
+                  Top posts get rewarded with Bitcoin sats
+                </p>
+              </div>
+              
+              <div className="bg-amber-50 p-6 rounded-lg">
+                <div className="text-4xl mb-2">🎉</div>
+                <h4 className="font-bold mb-2">Claim</h4>
+                <p className="text-sm">
+                  Creators claim their rewards faster than a quick-draw!
+                </p>
+              </div>
+            </div>
+
+            <div className="border-b-2 border-dashed border-amber-200 my-8"></div>
+
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-amber-900 mb-4">
+                Ready to Join the Posse? 🌟
+              </h3>
+              
+              <div className="flex gap-4 justify-center mt-8">
+                <a
+                  href="https://x.com/SatSlinger"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  <span className="mr-2">𝕏</span>
+                  Follow @SatSlinger
+                </a>
+                
+                <a
+                  href="https://devpost.com/software/saslinger"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                >
+                  🚀 View on Devpost
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-16 text-center text-amber-700">
+          <p>
+            Built for the NEAR Protocol One Trillion Agents Hackathon
+            <span className="mx-2">•</span>
+            Powered by NEAR Protocol & Bitcoin 
+            <span className="mx-2">•</span>
+            Bringing Web3 to the Wild West 🤠
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
