@@ -132,7 +132,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 }
 
 // Simple function to get UTXOs and select the largest one
-async function getUtxoInfo(pubKey, amount) {
+async function getUtxoInfo(pubKey: string, amount: number) {
   try {
     // Convert public key to Bitcoin address
     const address = pubKeyToAddress(pubKey);
@@ -157,11 +157,11 @@ async function getUtxoInfo(pubKey, amount) {
 
     // Find largest UTXO
     let maxValue = 0;
-    utxos.forEach((utxo) => {
+    utxos.forEach((utxo: any) => {
       if (utxo.value > maxValue) maxValue = utxo.value;
     });
     
-    const filteredUtxos = utxos.filter((utxo) => utxo.value === maxValue);
+    const filteredUtxos = utxos.filter((utxo: any) => utxo.value === maxValue);
     let selectedUtxo = filteredUtxos[0];
 
     // Calculate change
@@ -339,7 +339,7 @@ export default function DropPage() {
       
       // 1. Get UTXO info
       console.log('Fetching UTXO info for funder:', drop?.funder);
-      const utxoInfo = await getUtxoInfo(drop?.funder, drop?.amount);
+      const utxoInfo = await getUtxoInfo(drop?.funder as string, drop?.amount as number);
       console.log('Got UTXO info:', utxoInfo);
       
       // 2. Get Twitter user data
@@ -352,7 +352,7 @@ export default function DropPage() {
       // 3. Initialize NEAR connection
       console.log('Initializing NEAR connection...');
       const keyStore = new keyStores.InMemoryKeyStore();
-      const keyPair = KeyPair.fromString(twitterUser.secret);
+      const keyPair = KeyPair.fromString(twitterUser.secret as any);
       const publicKey = keyPair.getPublicKey().toString();
       console.log('Created key pair with public key:', publicKey);
       
@@ -387,8 +387,6 @@ export default function DropPage() {
           change: utxoInfo.change,
         },
         gas: BigInt(300_000_000_000_000), // 300 TGas
-        requestTimeout: 180000, // 3 minutes
-        responseTimeout: 180000 // 3 minutes
       });
       
       console.log('Contract call result:', result);
@@ -398,8 +396,8 @@ export default function DropPage() {
       
       // Look through receipt outcomes for the signed transaction
       for (const receipt of result.receipts_outcome) {
-        if (receipt.outcome.status.SuccessValue) {
-          const decodedValue = Buffer.from(receipt.outcome.status.SuccessValue, 'base64').toString();
+        if ((receipt.outcome.status as any).SuccessValue) {
+          const decodedValue = Buffer.from((receipt.outcome.status as any).SuccessValue, 'base64').toString();
           
           // Look for hex string that looks like a Bitcoin transaction
           if (decodedValue.startsWith('"01') && decodedValue.endsWith('"')) {
@@ -428,7 +426,7 @@ export default function DropPage() {
         url: `https://blockstream.info/testnet/tx/${txHash}`
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in claim process:', error);
       setError(error.message || 'Failed to claim');
     } finally {
@@ -450,11 +448,12 @@ export default function DropPage() {
           // Get transaction result
           const result = await near.connection.provider.txStatus(
             transactionHashes,
-            'satslinger.coldice4974.testnet'
+            'satslinger.coldice4974.testnet',
+            'FINAL'
           );
 
-          if (result.status.SuccessValue) {
-            const signedTx = Buffer.from(result.status.SuccessValue, 'base64').toString();
+          if ((result.status as any).SuccessValue) {
+            const signedTx = Buffer.from((result.status as any).SuccessValue, 'base64').toString();
             
             // Broadcast to Bitcoin network
             const broadcastResponse = await fetch('https://mempool.space/testnet/api/tx', {

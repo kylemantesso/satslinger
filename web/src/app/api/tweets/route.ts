@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connect, keyStores, utils } from 'near-api-js';
+import { connect, keyStores } from 'near-api-js';
 import { KeyPair } from 'near-api-js';
 import { generateSeedPhrase } from 'near-seed-phrase';
 import { createClient } from '@supabase/supabase-js';
@@ -31,14 +31,6 @@ const config = {
   nodeUrl: 'https://rpc.testnet.near.org',
   headers: {}
 };
-
-// Initialize the keyStore with account credentials
-async function initializeKeyStore() {
-  const keyPair = KeyPair.fromRandom('ed25519');
-  const privateKey = NEAR_PRIVATE_KEY.replace('ed25519:', '');
-  keyPair.secretKey = Buffer.from(privateKey, 'base64');
-  await keyStore.setKey('testnet', NEAR_ACCOUNT_ID, keyPair);
-}
 
 type Campaign = {
   search_terms: string[];
@@ -74,7 +66,7 @@ async function getCampaigns() {
     return [];
   }
 
-  console.log('Campaigns:', campaigns.map(([id, campaign]) => ({
+  console.log('Campaigns:', campaigns.map(([id, campaign]: any) => ({
     id,
     search_terms: campaign.search_terms
   })));
@@ -236,7 +228,7 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
       .sort((a: Tweet, b: Tweet) => b.engagement_score - a.engagement_score);
 
     console.log(`Scored and sorted ${scoredTweets.length} tweets by engagement`);
-    console.log('Top 3 tweets (excluding existing drops):', scoredTweets.slice(0, 3).map(t => ({
+    console.log('Top 3 tweets (excluding existing drops):', scoredTweets.slice(0, 3).map((t: any) => ({
       id: t.id,
       text: t.text.substring(0, 50) + '...',
       engagement_score: t.engagement_score,
@@ -375,7 +367,7 @@ async function initKeyStore() {
     throw new Error('Missing PRIVATE_KEY or ACCOUNT_ID in environment variables');
   }
   
-  const keyPair = KeyPair.fromString(NEAR_PRIVATE_KEY);
+  const keyPair = KeyPair.fromString(NEAR_PRIVATE_KEY as any);
   await keyStore.setKey('testnet', NEAR_ACCOUNT_ID, keyPair);
   
   return connect({
@@ -491,7 +483,7 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
 
   // Generate key pair for drop using seed phrase
   const { secretKey: dropSecret } = generateSeedPhrase();
-  const dropKeyPair = KeyPair.fromString(dropSecret);
+  const dropKeyPair = KeyPair.fromString(dropSecret as any);
   const publicKey = dropKeyPair.getPublicKey().toString();
 
   try {

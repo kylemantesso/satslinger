@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function TwitterCallback() {
+function CallbackContent() {
   const [status, setStatus] = useState('Loading...');
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -94,5 +94,19 @@ export default function TwitterCallback() {
         <h1 className="text-xl font-bold mb-4">{status}</h1>
       </div>
     </div>
+  );
+}
+
+export default function TwitterCallback() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <h1 className="text-xl font-bold mb-4">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <CallbackContent />
+    </Suspense>
   );
 }
