@@ -29,9 +29,13 @@ const supabase = createClient(
 // Update NEAR connection setup
 const keyStore = new keyStores.InMemoryKeyStore();
 
-
+// Add logging helper
+const log = (context: string, message: string, data?: any) => {
+  console.log(`[${context}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+};
 
 // Initialize Twitter client with credentials
+log('Init', 'Initializing Twitter client with credentials');
 const twitterClient = new TwitterApi({
   appKey: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN!,
   appSecret: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET!,
@@ -57,28 +61,26 @@ type Tweet = {
 };
 
 async function getCampaigns() {
-  // Connect to NEAR
-  const near = await connect(config);
-  const contractAccount = await near.account(CONTRACT_ID);
+  log('getCampaigns', 'Starting to fetch campaigns');
+  try {
+    const near = await connect(config);
+    log('getCampaigns', 'Connected to NEAR');
+    
+    const contractAccount = await near.account(CONTRACT_ID);
+    log('getCampaigns', `Using contract account: ${CONTRACT_ID}`);
 
-  // Fetch all campaigns from contract
-  const campaigns = await contractAccount.viewFunction({
-    contractId: CONTRACT_ID,
-    methodName: 'get_campaigns',
-    args: {}
-  });
+    const campaigns = await contractAccount.viewFunction({
+      contractId: CONTRACT_ID,
+      methodName: 'get_campaigns',
+      args: {}
+    });
 
-  if (!campaigns || campaigns.length === 0) {
-    console.log('ℹ️ No campaigns found in contract');
-    return [];
+    log('getCampaigns', `Found ${campaigns?.length || 0} campaigns`, campaigns);
+    return campaigns;
+  } catch (error) {
+    log('getCampaigns', 'Error fetching campaigns:', error);
+    throw error;
   }
-
-  console.log('Campaigns:', campaigns.map(([id, campaign]: any) => ({
-    id,
-    search_terms: campaign.search_terms
-  })));
-
-  return campaigns;
 }
 
 function calculateEngagementScore(metrics: { 
@@ -179,54 +181,42 @@ async function getExistingDrops(tweetIds: string[]): Promise<string[]> {
 }
 
 async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
-  console.log(`Fetching tweets for campaign ${id} with search terms:`, campaign.search_terms);
-  const query = buildTwitterQuery(campaign.search_terms);
-  console.log(`Built Twitter query: ${query}`);
+  log('fetchTweets', `Fetching tweets for campaign ${id}`, campaign);
   
-  const queryParams = new URLSearchParams({
-    query,
-    max_results: '20',
-    'tweet.fields': 'created_at,author_id,public_metrics,text,id',
-    'sort_order': 'relevancy'
-  });
+  const query = buildTwitterQuery(campaign.search_terms);
+  log('fetchTweets', 'Built query:', query);
 
-  const queryUrl = `${TWITTER_API_URL}?${queryParams.toString()}`;
   const currentTime = Math.floor(Date.now() / 1000);
   const minTimestamp = currentTime - (MINIMUM_AGE_HOURS * 60 * 60);
-  console.log(`Using minimum timestamp: ${new Date(minTimestamp * 1000).toISOString()}`);
+  log('fetchTweets', `Using time range: ${new Date(minTimestamp * 1000).toISOString()} to now`);
 
   try {
-    console.log(`Making Twitter API request to: ${queryUrl}`);
     const response = await fetch(
-      `${queryUrl}&start_time=${new Date(minTimestamp * 1000).toISOString()}`,
+      `${TWITTER_API_URL}?${queryParams.toString()}&start_time=${new Date(minTimestamp * 1000).toISOString()}`,
       {
         headers: { Authorization: `Bearer ${TWITTER_BEARER_TOKEN}` }
       }
     );
+    
     const data = await response.json();
-    console.log(`Twitter API response status: ${response.status}`);
+    log('fetchTweets', `Twitter API response status: ${response.status}`, data);
 
     if (!response.ok) {
-      console.error(`Twitter API error: ${data.message || 'Unknown error'}`);
+      log('fetchTweets', 'Twitter API error:', data);
       return { campaignId: id, results: { error: data.message || 'Failed to fetch tweets' } };
     }
 
-    console.log(`Retrieved ${data.data?.length || 0} tweets from Twitter API`);
-    
-    // Get all tweet IDs
-    const tweetIds = data.data?.map((tweet: Tweet) => tweet.id) || [];
-    console.log(`Extracted ${tweetIds.length} tweet IDs`);
-    
     // Get existing drops
-    const existingDropTweetIds = await getExistingDrops(tweetIds);
-    console.log(`Found ${existingDropTweetIds.length} existing drops for these tweets`);
+    const tweetIds = data.data?.map((tweet: Tweet) => tweet.id) || [];
+    log('fetchTweets', `Found ${tweetIds.length} tweets`);
     
-    // Filter out tweets that already have drops
+    const existingDropTweetIds = await getExistingDrops(tweetIds);
+    log('fetchTweets', `Found ${existingDropTweetIds.length} existing drops`);
+
     const filteredTweets = data.data?.filter((tweet: Tweet) => 
       !existingDropTweetIds.includes(tweet.id)
     ) || [];
-    console.log(`After filtering existing drops: ${filteredTweets.length} tweets remaining`);
-
+    
     const scoredTweets = filteredTweets
       .map((tweet: Tweet) => ({
         ...tweet,
@@ -234,18 +224,18 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
       }))
       .sort((a: Tweet, b: Tweet) => b.engagement_score - a.engagement_score);
 
-    console.log(`Scored and sorted ${scoredTweets.length} tweets by engagement`);
-    console.log('Top 3 tweets (excluding existing drops):', scoredTweets.slice(0, 3).map((t: any) => ({
-      id: t.id,
-      text: t.text.substring(0, 50) + '...',
-      engagement_score: t.engagement_score,
-      metrics: t.public_metrics
-    })));
+    log('fetchTweets', `Final processed tweets: ${scoredTweets.length}`, 
+      scoredTweets.slice(0, 3).map(t => ({
+        id: t.id,
+        score: t.engagement_score,
+        metrics: t.public_metrics
+      }))
+    );
 
     return { campaignId: id, tweets: scoredTweets.slice(0, 3) };
-  } catch (err: any) {
-    console.error(`Error fetching tweets for campaign ${id}:`, err);
-    return { campaignId: id, results: { error: err.message || 'Error occurred' } };
+  } catch (error) {
+    log('fetchTweets', `Error processing campaign ${id}:`, error);
+    throw error;
   }
 }
 
@@ -291,26 +281,27 @@ async function getAccessToken(): Promise<string> {
 // Update the sendTweetReply function
 async function sendTweetReply(tweetText: string, inReplyToTweetId: string) {
   try {
-    console.log('=== Twitter Reply Debug Logs ===');
-    console.log('Tweet Text:', tweetText);
-    console.log('Reply To ID:', inReplyToTweetId);
+    log('sendTweetReply', 'Starting tweet reply', {
+      text: tweetText,
+      replyTo: inReplyToTweetId
+    });
 
-    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN!);
-    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET!);
-    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT!);
-    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET!);
+    log('sendTweetReply', 'Twitter client credentials:', {
+      appKey: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN?.substring(0, 8) + '...',
+      appSecret: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET?.substring(0, 8) + '...',
+      accessToken: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT?.substring(0, 8) + '...',
+      accessSecret: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET?.substring(0, 8) + '...'
+    });
 
     const response = await twitterClient.v2.reply(
       tweetText,
       process.env.SATSLINGER_REPLY_TWEET_ID ?? inReplyToTweetId
     );
     
-    console.log('Tweet Response:', response);
-    console.log('=== End Twitter Reply Debug Logs ===');
-    
+    log('sendTweetReply', 'Tweet response:', response);
     return response;
   } catch (error) {
-    console.error('Error sending tweet reply:', error);
+    log('sendTweetReply', 'Error sending tweet reply:', error);
     throw error;
   }
 }

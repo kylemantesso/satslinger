@@ -34,10 +34,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-100">
-      <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
+      {/* Banner Section */}
+      <div className="w-full bg-gradient-to-b from-sky-200 to-orange-50 pb-8">
+        <div className="max-w-5xl mx-auto">
+          <Image
+            src="/banner.png"
+            alt="Satslinger - Built on NEAR"
+            width={1200}
+            height={400}
+            priority
+            className="w-full h-auto shadow-xl"
+          />
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <div className="text-8xl mb-6">🤠</div>
           <h1 className="text-5xl font-bold text-amber-900 mb-4 font-serif">
             Howdy, Partner!
           </h1>
@@ -70,7 +83,7 @@ export default function Home() {
             <div className="border-b-2 border-dashed border-amber-200 my-8"></div>
 
             <h3 className="text-2xl font-bold text-amber-900 mb-4">
-              How It Works 🎯
+              How It Works 
             </h3>
 
             <div className="grid gap-6 md:grid-cols-3 mb-8">
@@ -106,7 +119,7 @@ export default function Home() {
                 Ready to Join the Posse? 🌟
               </h3>
               
-              <div className="flex gap-4 justify-center mt-8">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                 <a
                   href="https://x.com/SatSlinger"
                   target="_blank"
