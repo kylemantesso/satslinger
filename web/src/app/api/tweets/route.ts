@@ -62,6 +62,12 @@ type Tweet = {
   author_id: string;
 };
 
+type TweetResult = {
+  campaignId: string;
+  tweets?: Tweet[];
+  error?: string;
+};
+
 async function getCampaigns() {
   log('getCampaigns', 'Starting to fetch campaigns');
   try {
@@ -189,7 +195,7 @@ async function getExistingDrops(tweetIds: string[]): Promise<string[]> {
   return data.map(drop => drop.tweet_id);
 }
 
-async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
+async function fetchTweetsForCampaign(campaign: Campaign, id: string): Promise<TweetResult> {
   log('fetchTweets', `Fetching tweets for campaign ${id}`, campaign);
   
   const query = buildTwitterQuery(campaign.search_terms);
@@ -220,7 +226,10 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
 
     if (!response.ok) {
       log('fetchTweets', 'Twitter API error:', data);
-      return { campaignId: id, results: { error: data.message || 'Failed to fetch tweets' } };
+      return { 
+        campaignId: id, 
+        error: data.message || 'Failed to fetch tweets'
+      };
     }
 
     // Get existing drops
@@ -541,7 +550,6 @@ export async function POST(request: Request) {
     console.log(`Found ${campaigns.length} campaigns to process`);
     if (campaigns.length === 0) return NextResponse.json({ data: [] });
 
-    // Process campaigns sequentially with delay
     const evaluatedResults = [];
     for (let i = 0; i < campaigns.length; i++) {
       const [id, campaign] = campaigns[i];
@@ -550,11 +558,22 @@ export async function POST(request: Request) {
       console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
       const tweetResult = await fetchTweetsForCampaign(campaign, id);
       
+      // Skip evaluation if there was an error or no tweets
+      if (tweetResult.error || !tweetResult.tweets) {
+        evaluatedResults.push({
+          campaignId: id,
+          results: { error: tweetResult.error || 'No tweets found' }
+        });
+        continue;
+      }
+
       console.log(`Evaluating tweets for campaign ${id}`);
-      const evaluatedResult = await evaluateCampaignTweets(tweetResult, campaign);
+      const evaluatedResult = await evaluateCampaignTweets({
+        campaignId: id,
+        tweets: tweetResult.tweets
+      }, campaign);
       evaluatedResults.push(evaluatedResult);
 
-      // Add 5 second delay between campaigns, except for the last one
       if (i < campaigns.length - 1) {
         console.log('Waiting 5 seconds before processing next campaign...');
         await wait(5000);
