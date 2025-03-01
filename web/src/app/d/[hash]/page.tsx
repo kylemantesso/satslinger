@@ -204,7 +204,7 @@ export default function DropPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [twitterUser, setTwitterUser] = useState<TwitterUser | null>(null);
-  const [btcAddress, setBtcAddress] = useState('moxUjpaYwwqgPsWbL8G7gnDcnZv3dY28x6');
+  const [btcAddress, setBtcAddress] = useState<string>('');
   const [success, setSuccess] = useState<{
     message: string;
     txid: string;
@@ -278,6 +278,23 @@ export default function DropPage() {
       checkAuth();
     }
   }, [drop]);
+
+  // Load BTC address from localStorage on mount
+  useEffect(() => {
+    const savedAddress = localStorage.getItem('btcAddress');
+    if (savedAddress) {
+      setBtcAddress(savedAddress);
+      console.log('Loaded saved BTC address:', savedAddress);
+    }
+  }, []);
+
+  // Save BTC address to localStorage when it changes
+  const handleBtcAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newAddress = e.target.value;
+    setBtcAddress(newAddress);
+    localStorage.setItem('btcAddress', newAddress);
+    console.log('Saved BTC address:', newAddress);
+  };
 
   const handleTwitterLogin = async () => {
     try {
@@ -611,7 +628,7 @@ export default function DropPage() {
                 <input
                   type="text"
                   value={btcAddress}
-                  onChange={(e) => setBtcAddress(e.target.value)}
+                  onChange={handleBtcAddressChange}
                   className="w-full p-4 border-2 border-amber-200 rounded-lg 
                            focus:ring-2 focus:ring-amber-500 focus:border-amber-500
                            bg-white shadow-inner"
