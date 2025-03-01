@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🤠 SatSlinger
 
-## Getting Started
+SatSlinger is an AI-powered Bitcoin tipping bot that automatically rewards the best content on X (formerly Twitter) with Bitcoin tips. Built for the One Trillion Agents Hackathon.
 
-First, run the development server:
+## 🌐 Links
+
+- [Live Demo](https://satslinger.com)
+- [Twitter Bot](https://twitter.com/SatSlinger)
+- [Hackathon Submission](https://devpost.com/software/saslinger)
+
+## 🌟 Core Features
+
+### Bitcoin Reward System
+- Automated tweet scoring based on engagement metrics
+- Dynamic reward calculation (546-1546 sats) based on:
+  - Likes (0.1x weight)
+  - Retweets (0.4x weight)
+  - Replies (0.3x weight)
+  - Quote tweets (0.4x weight)
+- ECDSA signature verification for secure Bitcoin transactions
+
+### AI Content Evaluation
+- Automated content quality assessment
+- Engagement scoring algorithm
+- Smart filtering of relevant NEAR Protocol content
+- Automated reward distribution decisions
+
+### Drop System
+- Secure claim links generation
+- Twitter handle verification
+- Bitcoin address validation
+- UTXO management for rewards
+- Transaction broadcasting
+
+## 🛠 Technical Architecture
+
+### Smart Contract (Rust)
+- Campaign management for tracking reward campaigns
+- Drop creation and management system
+- Secure key storage for Bitcoin rewards
+- Access control for campaign creators
+- NEAR token integration for funding campaigns
+- Cross-contract calls for reward distribution
+- Storage management for efficient data handling
+
+### Frontend Components
+- **Tweet Component**: Embedded tweet display
+- **Chat Interface**: AI agent interaction
+- **Drop Page**: Reward claim interface
+- **Twitter Auth**: OAuth2 PKCE flow
+
+### API Routes
+- `/api/tweets`: Tweet fetching and scoring
+- `/api/agent`: AI agent endpoint
+- `/api/twitter-auth`: Twitter authentication
+- `/api/drop`: Drop management
+
+## 🔐 Security Features
+
+### Twitter Authentication
+- OAuth 2.0 with PKCE
+- State verification
+- Token refresh handling
+- Secure callback processing
+
+### Bitcoin Security
+- ECDSA signature verification
+- UTXO validation
+- Secure key management
+- Transaction verification
+
+## 🚀 Getting Started
+
+### 1. Clone and install dependencies:
+
+```bash
+git clone https://github.com/kylemantesso/satslinger.git
+cd satslinger/web
+npm install
+```
+
+### 2. Configure environment variables:
+
+```env
+# NEAR Configuration
+NEXT_PUBLIC_NEAR_NETWORK_ID=testnet
+NEXT_PUBLIC_CONTRACT_ID=satslinger.testnet
+
+# Twitter API Keys
+TWITTER_API_KEY=your_api_key
+TWITTER_API_SECRET=your_api_secret
+TWITTER_BEARER_TOKEN=your_bearer_token
+
+# Bitcoin Configuration
+BITCOIN_NETWORK=testnet
+
+# Base URL
+BASE_URL=http://localhost:3000
+```
+
+### 3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🤝 Contributing
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📄 License
 
-## Learn More
+MIT License
 
-To learn more about Next.js, take a look at the following resources:
+## 📬 Contact
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Follow [@SatSlinger](https://twitter.com/SatSlinger) on X for updates and support.
