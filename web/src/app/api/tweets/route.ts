@@ -186,6 +186,14 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
   const query = buildTwitterQuery(campaign.search_terms);
   log('fetchTweets', 'Built query:', query);
 
+  const queryParams = new URLSearchParams({
+    query,
+    max_results: '20',
+    'tweet.fields': 'created_at,author_id,public_metrics,text,id',
+    'sort_order': 'relevancy'
+  });
+
+
   const currentTime = Math.floor(Date.now() / 1000);
   const minTimestamp = currentTime - (MINIMUM_AGE_HOURS * 60 * 60);
   log('fetchTweets', `Using time range: ${new Date(minTimestamp * 1000).toISOString()} to now`);
@@ -225,7 +233,7 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string) {
       .sort((a: Tweet, b: Tweet) => b.engagement_score - a.engagement_score);
 
     log('fetchTweets', `Final processed tweets: ${scoredTweets.length}`, 
-      scoredTweets.slice(0, 3).map(t => ({
+      scoredTweets.slice(0, 3).map((t: any) => ({
         id: t.id,
         score: t.engagement_score,
         metrics: t.public_metrics
