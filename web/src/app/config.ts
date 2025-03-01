@@ -12,4 +12,4 @@ if (!PLUGIN_URL) {
   process.exit(1);
 }
 
-export { ACCOUNT_ID, PLUGIN_URL };
+export { ACCOUNT_ID, PLUGIN_URL };  

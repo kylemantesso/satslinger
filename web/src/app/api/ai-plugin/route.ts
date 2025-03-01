@@ -112,35 +112,65 @@ export async function GET() {
                     }
                 }
             },
-            "/api/campaign/status": {
+            "/api/drop/get": {
                 get: {
-                    summary: "Get campaign funding status",
-                    description: "Check if a campaign has received Bitcoin funding",
-                    operationId: "getCampaignStatus",
+                    summary: "Get drop information by hash",
+                    description: "Retrieve details about a specific drop using its hash",
+                    operationId: "getDropByHash",
                     parameters: [
                         {
-                            name: "campaignId",
+                            name: "hash",
                             in: "query",
                             required: true,
                             schema: { type: "string" },
-                            description: "Campaign identifier"
+                            description: "Unique hash identifier for the drop"
                         }
                     ],
                     responses: {
                         "200": {
-                            description: "Campaign status retrieved",
+                            description: "Drop information retrieved successfully",
                             content: {
                                 "application/json": {
                                     schema: {
                                         type: "object",
                                         properties: {
-                                            funded: {
-                                                type: "boolean",
-                                                description: "Whether campaign has received funding"
+                                            id: {
+                                                type: "string",
+                                                description: "Drop identifier"
                                             },
-                                            balance: {
+                                            amount: {
                                                 type: "number",
-                                                description: "Current balance in satoshis"
+                                                description: "Drop amount in satoshis"
+                                            },
+                                            status: {
+                                                type: "string",
+                                                description: "Current status of the drop (e.g., 'pending', 'claimed', 'expired')"
+                                            },
+                                            createdAt: {
+                                                type: "string",
+                                                format: "date-time",
+                                                description: "Timestamp when the drop was created"
+                                            },
+                                            expiresAt: {
+                                                type: "string",
+                                                format: "date-time",
+                                                description: "Timestamp when the drop expires"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            description: "Drop not found",
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        properties: {
+                                            error: {
+                                                type: "string",
+                                                description: "Error message"
                                             }
                                         }
                                     }
