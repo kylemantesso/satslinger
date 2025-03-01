@@ -59,13 +59,22 @@ export default function Home() {
           </p>
           
           {/* Hackathon Badge */}
-          <div className="inline-block bg-amber-100 border-2 border-amber-300 rounded-full px-4 py-2 text-amber-800">
+          <div className="inline-block bg-amber-100 border-2 border-amber-300 rounded-full px-4 py-2 text-amber-800 mb-4">
             <a href="https://devpost.com/software/saslinger" target="_blank" rel="noopener noreferrer" className="hover:underline">
               🏆 Entry in NEAR Protocol's One Trillion Agents Hackathon
             </a>
           </div>
-        </div>
+          <div className="text-center">
+            <a
+              href="/agent"
+              className="inline-flex items-center px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+            >
+              🤖 Promote your crypto project with our AI Agent
+            </a>
+          </div>
 
+        </div>
+         
         {/* Main Content */}
         <div className="bg-white rounded-xl shadow-2xl p-8 border-2 border-amber-200">
           <div className="prose prose-lg max-w-none text-amber-800">
