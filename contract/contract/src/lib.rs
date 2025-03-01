@@ -14,7 +14,7 @@ mod ecdsa;
 mod external;
 mod utils;
 
-const MPC_CONTRACT_ACCOUNT_ID: &str = "v1.signer-prod.testnet";
+const MPC_CONTRACT_ACCOUNT_ID: &str = "v1.signer";
 const MPC_GAS: Gas = Gas::from_tgas(100);
 const MPC_ATTACHED_DEPOSIT: NearToken = NearToken::from_yoctonear(500000000000000000000000);
 

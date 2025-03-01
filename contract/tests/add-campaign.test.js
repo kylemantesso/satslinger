@@ -14,17 +14,21 @@ const {
 } = process.env;
 
 // Fixed testnet funding public key (uncompressed)
-// const FUNDING_PUBKEY = '04d0f396ae4b64723c141f414b807dc12340502fff15320a84ec7eae3f5c996cefa6186b90cfbfe77d8c76a167ead7a917a48aa3d1c5771d649c0d3d0a90da39ba';
-// const FUNDING_ADDRESS = 'mxbTAxP3RKhyokeQgXWhU7xHnTyxgZ1784'
+const FUNDING_PUBKEY = '043c86621dfc7a21e6e09c76903c350591b8a45b71671d3b6d31b55c47990879e68acbfa853f111c0c57e28cb698aa3ee87987637c8beb5cd5b3cf9d260157b0a9';
+const FUNDING_ADDRESS = '1LbaEByRe3qkzhoLuWDLMLbDb2FF9RsTky'
 // Create campaign
 test('create campaign', async (t) => {
     // Get address details from KDF
-    const { address, publicKey } = await generateAddress({
-        publicKey: MPC_PUBLIC_KEY,
-        accountId: contractId,
-        path: MPC_PATH,
-        chain: 'bitcoin'
-    });
+    // const { address, publicKey } = await generateAddress({
+    //     publicKey: MPC_PUBLIC_KEY,
+    //     accountId: contractId,
+    //     path: MPC_PATH,
+    //     chain: 'bitcoin'
+    // });
+
+    const address = FUNDING_ADDRESS;
+    const publicKey = FUNDING_PUBKEY;
+    
 
     console.log('\nFunding Details:');
     console.log('Address:', address);
