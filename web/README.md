@@ -119,3 +119,9 @@ MIT License
 ## 📬 Contact
 
 Follow [@SatSlinger](https://twitter.com/SatSlinger) on X for updates and support.
+
+## 🙌 Credits
+
+SatSlinger is built using open-source projects:
+- [Agent Next Boilerplate](https://github.com/BitteProtocol/agent-next-boilerplate)
+- [NEAR CS Linkdrop](https://github.com/mattlockyer/near-cs-linkdrop)
