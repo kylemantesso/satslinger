@@ -35,64 +35,42 @@ const Bitcoin = new SignetBTC({
 });
 
 export async function GET(request: Request) {
-  console.log('🔄 Creating campaign transaction payload...');
   try {
-    // Get parameters from URL search params
     const { searchParams } = new URL(request.url);
-    const hashtags = searchParams.get('hashtags');
-    const accountId = searchParams.get('accountId');
-    const derivation = searchParams.get('derivation');
+    const searchTerms = searchParams.get('searchTerms')?.split(',') || [];
+    const twitterHandle = searchParams.get('twitterHandle');
+    const fundingPublicKey = searchParams.get('fundingPublicKey');
+    const mpcPath = searchParams.get('mpcPath');
 
-    // Validate required fields: hashtags and accountId are required.
-    if (!hashtags || !accountId) {
-      console.error('❌ Missing required fields');
+    if (!searchTerms.length || !twitterHandle || !fundingPublicKey || !mpcPath) {
       return NextResponse.json(
-        { error: 'Missing required fields: hashtags and accountId are required' },
+        { error: 'searchTerms, twitterHandle, fundingAddress, and mpcPath are required' },
         { status: 400 }
       );
     }
 
-    // Use the provided derivation or default to "bitcoin-1"
-    const derivationPath = derivation || 'bitcoin-1';
-    console.log(`🔑 Deriving Bitcoin address for ${accountId} using derivation path ${derivationPath}...`);
-
-    // Derive the Bitcoin address off-chain using the SignetBTC helper.
-    const { address: btcAddress } = await Bitcoin.deriveAddressAndPublicKey(accountId, derivationPath);
-    console.log('🔑 Derived BTC address:', btcAddress);
-
-    // Create the transaction payload for campaign registration.
-    // No deposit is needed, so deposit is set to "0".
-    const transaction = {
-      receiverId: nearConfig.contractName,
-      actions: [
-        {
-          type: 'FunctionCall',
-          params: {
-            methodName: 'register_campaign',
-            args: {
-              hashtags: hashtags.split(','),
-              btc_address: btcAddress,
-            },
-            gas: '300000000000000',
-            deposit: '0',
-          },
-        },
-      ],
+    // Create transaction payload
+    const transactionPayload = {
+      contractId: CONTRACT_ID,
+      methodName: 'create_campaign',
+      args: {
+        funding_address: fundingPublicKey,
+        path: mpcPath,
+        search_terms: searchTerms,
+        instruction: '',
+        twitter_handle: twitterHandle,
+      },
+      gas: '300000000000000', // 300 TGas
+      deposit: '0'  // Explicitly set deposit to 0
     };
 
-    console.log('✅ Transaction payload created successfully');
-    return NextResponse.json({
-      success: true,
-      transaction,
-      metadata: {
-        hashtags: hashtags.split(','),
-        btcAddress,
-        owner: accountId,
-        derivationPath,
-      },
-    });
+    return NextResponse.json({ transactionPayload });
+
   } catch (error) {
-    console.error('❌ Error creating transaction payload:', error);
-    return NextResponse.json({ error: (error as unknown as Error).toString() }, { status: 500 });
+    console.error('Error preparing campaign creation:', error);
+    return NextResponse.json(
+      { error: 'Failed to prepare campaign creation' },
+      { status: 500 }
+    );
   }
 }
