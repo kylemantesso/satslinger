@@ -3,29 +3,33 @@ import { Bitcoin as SignetBTC, BTCRpcAdapters } from 'signet.js';
 
 import { utils } from "signet.js";
 import { KeyPair } from "@near-js/crypto";
+import { CONTRACT_ID, NETWORK_ID, RPC_URL } from '@/utils/near';
 
 
-const NetworkId = 'testnet';
-const MPC_CONTRACT = 'v1.signer-prod.testnet'
+const MPC_CONTRACT = NETWORK_ID === 'mainnet' ? 'v1.signer-prod.near' : 'v1.signer-prod.testnet'
 // const MPC_KEY = 'secp256k1:4NfTiv3UsGahebgTaHyD9vF8KYKMBnfd6kh94mK6xv8fGBiJB8TBtFMP5WWXz6B89Ac1fbpzPwAvoyQebemHFwx3';
 
 const CONTRACT = new utils.chains.near.contract.NearChainSignatureContract({
-  networkId: NetworkId,
+  networkId: NETWORK_ID as any,
   contractId: MPC_CONTRACT,
   accountId: '',
   keypair: KeyPair.fromRandom("ed25519"),
 })
 
 const nearConfig = {
-  networkId: 'testnet',
-  nodeUrl: 'https://rpc.testnet.near.org',
-  contractName: 'tipcampaign.kylemantesso.testnet', // Your deployed contract name
+  networkId: NETWORK_ID,
+  nodeUrl: RPC_URL,
+  contractName: CONTRACT_ID,
 };
 
 // Initialize the BTCRpcAdapter and SignetBTC instance
-const btcRpcAdapter = new BTCRpcAdapters.Mempool('https://mempool.space/testnet4/api');
+const btcRpcAdapter = new BTCRpcAdapters.Mempool(
+  NETWORK_ID === 'mainnet' 
+    ? 'https://mempool.space/api' 
+    : 'https://mempool.space/testnet/api'
+);
 const Bitcoin = new SignetBTC({
-  network: 'testnet', // e.g. "testnet"
+  network: NETWORK_ID as any,
   contract: CONTRACT,
   btcRpcAdapter,
 });

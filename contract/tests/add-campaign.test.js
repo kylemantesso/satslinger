@@ -14,26 +14,22 @@ const {
 } = process.env;
 
 // Fixed testnet funding public key (uncompressed)
-const FUNDING_PUBKEY = '04d0f396ae4b64723c141f414b807dc12340502fff15320a84ec7eae3f5c996cefa6186b90cfbfe77d8c76a167ead7a917a48aa3d1c5771d649c0d3d0a90da39ba';
-const FUNDING_ADDRESS = 'mxbTAxP3RKhyokeQgXWhU7xHnTyxgZ1784'
+// const FUNDING_PUBKEY = '04d0f396ae4b64723c141f414b807dc12340502fff15320a84ec7eae3f5c996cefa6186b90cfbfe77d8c76a167ead7a917a48aa3d1c5771d649c0d3d0a90da39ba';
+// const FUNDING_ADDRESS = 'mxbTAxP3RKhyokeQgXWhU7xHnTyxgZ1784'
 // Create campaign
 test('create campaign', async (t) => {
     // Get address details from KDF
-    // const { address, publicKey } = await generateAddress({
-    //     publicKey: MPC_PUBLIC_KEY,
-    //     accountId: contractId,
-    //     path: MPC_PATH,
-    //     chain: 'bitcoin'
-    // });
-
-
-    const address = FUNDING_ADDRESS;
-    const publicKey = FUNDING_PUBKEY
+    const { address, publicKey } = await generateAddress({
+        publicKey: MPC_PUBLIC_KEY,
+        accountId: contractId,
+        path: MPC_PATH,
+        chain: 'bitcoin'
+    });
 
     console.log('\nFunding Details:');
     console.log('Address:', address);
     console.log('Public Key:', publicKey);
-    console.log('\nIMPORTANT: Send testnet BTC to this address:', address);
+    console.log('\nIMPORTANT: Send BTC to this address:', address);
 
     // Get balance and UTXO info
     const balance = await getBalance({ address });
@@ -49,7 +45,7 @@ test('create campaign', async (t) => {
         contractId,
         methodName: 'create_campaign',
         args: {
-            funding_address: FUNDING_PUBKEY, // Use the derived public key
+            funding_address: publicKey, // Use the derived public key
             path: MPC_PATH,
             search_terms: ['#NEAR', '@BitteProtocol', '@near_ai', '@NEARProtocol'],
             instruction: '',

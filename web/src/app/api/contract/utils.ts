@@ -1,3 +1,4 @@
+import { CONTRACT_ID, RPC_URL } from "@/utils/near";
 import { createClient } from "@supabase/supabase-js";
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -11,7 +12,7 @@ export async function getCampaign(campaignId: number) {
     console.log('Args Base64:', argsBase64);
   
     // Make the POST request to the NEAR RPC endpoint
-    const res = await fetch("https://rpc.testnet.near.org/", {
+    const res = await fetch(RPC_URL, {
       headers: {
         "accept": "*/*",
         "accept-language": "en-AU,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -30,7 +31,7 @@ export async function getCampaign(campaignId: number) {
       body: JSON.stringify({
         method: "query",
         params: {
-          account_id: "linkdrop.kylemantesso.testnet",
+          account_id: CONTRACT_ID,
           args_base64: argsBase64,
           finality: "optimistic",
           method_name: "get_campaign",

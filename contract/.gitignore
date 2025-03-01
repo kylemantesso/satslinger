@@ -3,5 +3,5 @@ dist
 node_modules
 contract/target
 **/keys-*.txt
-.env
+.env*
 notes

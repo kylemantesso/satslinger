@@ -1,6 +1,6 @@
 import { fetchJson } from './utils.js';
 
-const networkId = 'testnet';
+const networkId = process.env.NETWORK_ID;
 const bitcoinRpc = `https://blockstream.info/${
     networkId === 'testnet' ? 'testnet' : ''
 }/api`;

@@ -4,13 +4,16 @@ import { KeyPair } from 'near-api-js';
 import { generateSeedPhrase } from 'near-seed-phrase';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { RPC_URL, NETWORK_ID, CONTRACT_ID, config } from '@/utils/near';
+import { Client } from "twitter-api-sdk";
+import OAuth from 'oauth-1.0a';
+import { TwitterApi } from 'twitter-api-v2';
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
 const TWITTER_REFRESH_TOKEN = process.env.TWITTER_REFRESH_TOKEN!;
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID!;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET!;
 const TWITTER_API_URL = 'https://api.twitter.com/2/tweets/search/recent';
-const CONTRACT_ID = 'satslinger.coldice4974.testnet';
 const MINIMUM_AGE_HOURS = 72;
 const XAI_API_KEY = process.env.XAI_API_KEY;
 
@@ -25,12 +28,16 @@ const supabase = createClient(
 
 // Update NEAR connection setup
 const keyStore = new keyStores.InMemoryKeyStore();
-const config = {
-  networkId: 'testnet',
-  keyStore,
-  nodeUrl: 'https://rpc.testnet.near.org',
-  headers: {}
-};
+
+
+
+// Initialize Twitter client with credentials
+const twitterClient = new TwitterApi({
+  appKey: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN!,
+  appSecret: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET!,
+  accessToken: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT!,
+  accessSecret: process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET!,
+});
 
 type Campaign = {
   search_terms: string[];
@@ -281,49 +288,27 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-// Add this function to handle sending tweet replies
+// Update the sendTweetReply function
 async function sendTweetReply(tweetText: string, inReplyToTweetId: string) {
   try {
-    // For testing, always reply to this tweet ID
-    const hardcodedTweetId = "896618952914124800";
+    console.log('=== Twitter Reply Debug Logs ===');
+    console.log('Tweet Text:', tweetText);
+    console.log('Reply To ID:', inReplyToTweetId);
+
+    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN!);
+    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_SECRET!);
+    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT!);
+    console.log('SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET:', process.env.SATSLINGER_TWITTER_ACCESS_TOKEN_CLIENT_SECRET!);
+
+    const response = await twitterClient.v2.reply(
+      tweetText,
+      process.env.SATSLINGER_REPLY_TWEET_ID ?? inReplyToTweetId
+    );
     
-    console.log(`Sending reply to tweet ID ${hardcodedTweetId} with text: ${tweetText}`);
+    console.log('Tweet Response:', response);
+    console.log('=== End Twitter Reply Debug Logs ===');
     
-    // Get OAuth access token
-    const access_token = await getAccessToken();
-    
-    // Twitter API v2 endpoint for creating tweets
-    const url = 'https://api.twitter.com/2/tweets';
-    
-    // Prepare the request body
-    const requestBody = {
-      text: tweetText,
-      reply: {
-        in_reply_to_tweet_id: hardcodedTweetId
-      }
-    };
-    
-    // Make the request to Twitter API using OAuth access token
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    // Parse the response
-    const data = await response.json();
-    
-    if (!response.ok) {
-      console.error('Twitter API error:', data);
-      throw new Error(`Failed to send tweet: ${data.detail || 'Unknown error'}`);
-    }
-    
-    console.log('Successfully sent reply tweet:', data);
-    return data;
-    
+    return response;
   } catch (error) {
     console.error('Error sending tweet reply:', error);
     throw error;
@@ -339,7 +324,6 @@ async function storeDropDetails(dropData: {
   hash: string,
   secretKey: string,
   tweetId: string,
-  tweetText: string,
   campaignId: string,
   twitterHandle: string,
   amount: number
@@ -350,7 +334,6 @@ async function storeDropDetails(dropData: {
       hash: dropData.hash,
       secret_key: dropData.secretKey,
       tweet_id: dropData.tweetId,
-      tweet_text: dropData.tweetText,
       campaign_id: dropData.campaignId,
       twitter_handle: dropData.twitterHandle,
       amount: dropData.amount
@@ -372,12 +355,12 @@ async function initKeyStore() {
   }
   
   const keyPair = KeyPair.fromString(NEAR_PRIVATE_KEY as any);
-  await keyStore.setKey('testnet', NEAR_ACCOUNT_ID, keyPair);
+  await keyStore.setKey(NETWORK_ID, NEAR_ACCOUNT_ID, keyPair);
   
   return connect({
-    networkId: 'testnet',
+    networkId: NETWORK_ID,
     keyStore,
-    nodeUrl: 'https://rpc.testnet.near.org',
+    nodeUrl: RPC_URL,
   });
 }
 
@@ -423,10 +406,8 @@ async function createDropForWinner(params: {
             args: {
                 campaign_id: params.campaignId,
                 amount: params.amount.toString(),
-                // target_twitter_handle: params.twitterHandle,
-                // target_tweet_id: params.tweetId,
-                target_twitter_handle: "kylemantesso",
-                target_tweet_id: "896618952914124800",
+                target_twitter_handle: params.twitterHandle,
+                target_tweet_id: params.tweetId,
                 hash: params.hash
             }
         });
@@ -507,7 +488,6 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
       hash,
       secretKey: dropSecret,
       tweetId: winningTweet.id,
-      tweetText: winningTweet.text,
       campaignId: campaignResult.campaignId,
       twitterHandle: twitterHandle,
       amount: rewardAmount

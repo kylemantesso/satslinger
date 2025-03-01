@@ -71,7 +71,9 @@ export async function uncompressedHexPointToBtcAddress(
 }
 
 export async function generateBtcAddress({ childPublicKey, isTestnet = true }) {
-    const networkByte = Buffer.from([isTestnet ? 0x6f : 0x00]); // 0x00 for mainnet, 0x6f for testnet
+    const networkId = process.env.NETWORK_ID;
+    const isTestnetNew = networkId === 'testnet';
+    const networkByte = Buffer.from([isTestnetNew ? 0x6f : 0x00]); // 0x00 for mainnet, 0x6f for testnet
     const address = await uncompressedHexPointToBtcAddress(
         childPublicKey,
         networkByte,

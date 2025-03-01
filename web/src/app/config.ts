@@ -13,6 +13,3 @@ if (!PLUGIN_URL) {
 }
 
 export { ACCOUNT_ID, PLUGIN_URL };
-
-export const CONTRACT_ID = "tip-campaign.testnet"; // Update with your deployed contract ID
-export const SIGNER_URL = "https://your-signer-service.com"; // Update with your signer service URL

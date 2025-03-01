@@ -2,12 +2,13 @@ import test from 'ava';
 import fs from 'fs';
 import * as dotenv from 'dotenv';
 dotenv.config();
+
 const {
     SATSLINGER_ACCOUNT_ID: accountId,
     LINKDROP_CONTRACT_ID: contractId,
     AUTH_PUBLIC_KEY: authPublicKey,
 } = process.env;
-import { generateAddress } from './kdf.js';
+
 import {
     getAccount,
     contractCall,
@@ -15,7 +16,6 @@ import {
 } from './near-provider.js';
 
 import * as nearAPI from 'near-api-js';
-const { KeyPair } = nearAPI;
 
 test('delete, create contract account', async (t) => {
     try {
@@ -30,7 +30,7 @@ test('delete, create contract account', async (t) => {
         await account.createAccount(
             contractId,
             keyPair.getPublicKey(),
-            nearAPI.utils.format.parseNearAmount('5'), // Note: using 10 NEAR instead of 1
+            '10000000000000000000000000' // 10 NEAR for mainnet
         );
     } catch (e) {
         console.log('error createAccount', e);
@@ -45,7 +45,6 @@ test('deploy contract', async (t) => {
     console.log('deployed bytes', file.byteLength);
     const balance = await account.getAccountBalance();
     console.log('contract balance', balance);
-
     t.pass();
 });
 
@@ -58,6 +57,5 @@ test('init contract', async (t) => {
             auth_public_key: authPublicKey
         },
     });
-
     t.pass();
 });

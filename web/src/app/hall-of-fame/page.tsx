@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Tweet from '@/app/components/Tweet';
+import { RPC_URL, CONTRACT_ID } from '@/utils/near';
 
 type Drop = {
   campaign_id: number;
@@ -10,6 +11,7 @@ type Drop = {
   target_twitter_handle: string;
   hash: string;
   claimed: boolean;
+  created_at: number;
 };
 
 export default function HallOfFame() {
@@ -21,7 +23,7 @@ export default function HallOfFame() {
     async function loadDrops() {
       try {
         // Connect to NEAR RPC to get all drops
-        const response = await fetch('https://rpc.testnet.near.org', {
+        const response = await fetch(RPC_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -33,7 +35,7 @@ export default function HallOfFame() {
             params: {
               request_type: 'call_function',
               finality: 'final',
-              account_id: 'satslinger.coldice4974.testnet',
+              account_id: CONTRACT_ID,
               method_name: 'get_all_drops',
               args_base64: btoa('{}')
             }
@@ -57,8 +59,10 @@ export default function HallOfFame() {
           new Uint8Array(resultBytes.map((x: number) => x))
         );
         
+        // Parse and sort drops by most recent first
         const drops = JSON.parse(resultString);
-        setDrops(drops);
+        const sortedDrops = drops.sort((a: Drop, b: Drop) => b.created_at - a.created_at);
+        setDrops(sortedDrops);
       } catch (err) {
         console.error('Error fetching drops:', err);
         setError('Failed to load drops');
@@ -102,11 +106,18 @@ export default function HallOfFame() {
         </div>
 
         <div className="space-y-8">
-          {drops.map((drop) => (
+          {drops.map((drop, index) => (
             <div 
               key={drop.hash}
-              className="bg-white rounded-xl shadow-lg border-2 border-amber-200 overflow-hidden"
+              className="bg-white rounded-xl shadow-lg border-2 border-amber-200 overflow-hidden relative"
             >
+              {/* Add "Latest" badge for the 3 most recent drops */}
+              {index < 3 && (
+                <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                  Latest 🔥
+                </div>
+              )}
+              
               <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200">
                 <div className="flex justify-between items-center">
                   <div>

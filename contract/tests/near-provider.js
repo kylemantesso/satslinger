@@ -7,9 +7,9 @@ const { Near, Account, KeyPair, keyStores } = nearAPI;
 const { 
     SATSLINGER_ACCOUNT_ID: accountId, 
     SATSLINGER_PRIVATE: secretKey, 
-    LINKDROP_CONTRACT_ID: contractId 
+    LINKDROP_CONTRACT_ID: contractId,
+    NETWORK_ID: networkId
 } = process.env;
-export const networkId = 'testnet';
 export const keyPair = KeyPair.fromString(secretKey);
 export const keyStore = new keyStores.InMemoryKeyStore();
 keyStore.setKey(networkId, accountId, keyPair);
@@ -18,10 +18,18 @@ keyStore.setKey(networkId, contractId, keyPair);
 const config = {
     networkId,
     keyStore,
-    nodeUrl: 'https://rpc.testnet.near.org',
-    walletUrl: 'https://testnet.mynearwallet.com/',
-    helperUrl: 'https://helper.testnet.near.org',
-    explorerUrl: 'https://testnet.nearblocks.io',
+    nodeUrl: networkId === 'mainnet' 
+        ? 'https://rpc.mainnet.near.org' 
+        : 'https://rpc.testnet.near.org',
+    walletUrl: networkId === 'mainnet' 
+        ? 'https://app.mynearwallet.com/' 
+        : 'https://testnet.mynearwallet.com/',
+    helperUrl: networkId === 'mainnet' 
+        ? 'https://helper.mainnet.near.org' 
+        : 'https://helper.testnet.near.org',
+    explorerUrl: networkId === 'mainnet' 
+        ? 'https://nearblocks.io' 
+        : 'https://testnet.nearblocks.io',
 };
 const near = new Near(config);
 const { connection } = near;

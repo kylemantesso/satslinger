@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Tweet from '@/app/components/Tweet';
-import { convertLegacyToSegwit, pubKeyToAddress } from '@/utils/bitcoin';
-import { initNear, CONTRACT_ID } from '@/utils/near';
+import { pubKeyToAddress } from '@/utils/bitcoin';
+import { initNear, CONTRACT_ID, NETWORK_ID, RPC_URL } from '@/utils/near';
 import { Action, FunctionCall } from 'near-api-js/lib/transaction';
 import { PublicKey, KeyPair } from 'near-api-js/lib/utils/key_pair';
 import { connect, keyStores, Account } from 'near-api-js';
@@ -49,7 +49,7 @@ async function getDrop(hash: string) {
       params: {
         request_type: 'call_function',
         finality: 'final',
-        account_id: 'satslinger.coldice4974.testnet',
+        account_id: CONTRACT_ID,
         method_name: 'get_drop',
         args_base64: btoa(JSON.stringify({ hash }))
       }
@@ -58,7 +58,7 @@ async function getDrop(hash: string) {
     console.log('Request body:', requestBody);
     
     // Connect directly to NEAR RPC
-    const response = await fetch('https://rpc.testnet.near.org', {
+    const response = await fetch(RPC_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,7 +139,7 @@ async function getUtxoInfo(pubKey: string, amount: number) {
     console.log('Converting pubkey to address:', { pubKey, address });
 
     // Get UTXOs from Blockstream API
-    const networkId = 'testnet';
+    const networkId = NETWORK_ID;
     const bitcoinRpc = `https://blockstream.info/${
       networkId === 'testnet' ? 'testnet/' : ''
     }api`;
@@ -357,14 +357,14 @@ export default function DropPage() {
       console.log('Created key pair with public key:', publicKey);
       
       // Set the key in the keyStore
-      await keyStore.setKey('testnet', CONTRACT_ID, keyPair);
+      await keyStore.setKey(NETWORK_ID, CONTRACT_ID, keyPair);
       console.log('Set authorized key in keyStore for contract:', CONTRACT_ID);
       
       // Connect to NEAR
       const near = await connect({
-        networkId: 'testnet',
+        networkId: NETWORK_ID,
         keyStore,
-        nodeUrl: 'https://rpc.testnet.near.org',
+        nodeUrl: RPC_URL,
       });
       
       // 4. Call the claim method
@@ -448,7 +448,7 @@ export default function DropPage() {
           // Get transaction result
           const result = await near.connection.provider.txStatus(
             transactionHashes,
-            'satslinger.coldice4974.testnet',
+            CONTRACT_ID,
             'FINAL'
           );
 
@@ -456,7 +456,7 @@ export default function DropPage() {
             const signedTx = Buffer.from((result.status as any).SuccessValue, 'base64').toString();
             
             // Broadcast to Bitcoin network
-            const broadcastResponse = await fetch('https://mempool.space/testnet/api/tx', {
+            const broadcastResponse = await fetch(`https://mempool.space/${NETWORK_ID === 'mainnet' ? '' : 'testnet/'}api/tx`, {
               method: 'POST',
               headers: { 'Content-Type': 'text/plain' },
               body: signedTx
@@ -467,7 +467,7 @@ export default function DropPage() {
             setSuccess({
               message: 'Successfully claimed your sats!',
               txid,
-              url: `https://mempool.space/testnet/tx/${txid}`
+              url: `https://mempool.space/${NETWORK_ID === 'mainnet' ? '' : 'testnet/'}tx/${txid}`
             });
 
             // Refresh drop data
