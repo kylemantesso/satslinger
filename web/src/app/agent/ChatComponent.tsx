@@ -80,7 +80,7 @@ function AgentChat() {
 
     return (
         <BitteAiChat 
-            agentId="satslinger"
+            agentId="www.satslinger.com"
             apiUrl="/api/agent"
             wallet={{ near: { wallet } }}
             options={{
