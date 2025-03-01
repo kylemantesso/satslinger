@@ -339,8 +339,10 @@ async function storeDropDetails(dropData: {
   hash: string,
   secretKey: string,
   tweetId: string,
+  tweetText: string,
   campaignId: string,
-  twitterHandle: string
+  twitterHandle: string,
+  amount: number
 }) {
   const { data, error } = await supabase
     .from('drops')
@@ -348,8 +350,10 @@ async function storeDropDetails(dropData: {
       hash: dropData.hash,
       secret_key: dropData.secretKey,
       tweet_id: dropData.tweetId,
+      tweet_text: dropData.tweetText,
       campaign_id: dropData.campaignId,
-      twitter_handle: dropData.twitterHandle
+      twitter_handle: dropData.twitterHandle,
+      amount: dropData.amount
     })
     .select()
     .single();
@@ -501,10 +505,12 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
     // Store drop details with secret key
     await storeDropDetails({
       hash,
-      secretKey: dropSecret,  // Store the secret key
+      secretKey: dropSecret,
       tweetId: winningTweet.id,
+      tweetText: winningTweet.text,
       campaignId: campaignResult.campaignId,
-      twitterHandle: twitterHandle
+      twitterHandle: twitterHandle,
+      amount: rewardAmount
     });
 
     // Send a tweet reply to notify the user

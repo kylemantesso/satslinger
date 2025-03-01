@@ -1,6 +1,37 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Image from "next/image";
 
+type RewardedTweet = {
+  id: string;
+  text: string;
+  author: string;
+  amount: number;
+  timestamp: string;
+};
+
 export default function Home() {
+  const [recentRewards, setRecentRewards] = useState<RewardedTweet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch recent rewards
+    async function fetchRecentRewards() {
+      try {
+        const response = await fetch('/api/recent-rewards');
+        const data = await response.json();
+        setRecentRewards(data);
+      } catch (error) {
+        console.error('Failed to fetch recent rewards:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchRecentRewards();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-100">
       <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
@@ -97,6 +128,61 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Recent Rewards Section */}
+        <div className="mt-16 bg-white rounded-xl shadow-2xl p-8 border-2 border-amber-200">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-amber-900 mb-2">
+              Latest Rewards 🎯
+            </h2>
+            <p className="text-amber-800">
+              Check out the most recent posts that struck gold!
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="animate-pulse space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-amber-50 p-4 rounded-lg">
+                  <div className="h-4 bg-amber-100 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-amber-100 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 mb-8">
+                {recentRewards.map((tweet) => (
+                  <a
+                    key={tweet.id}
+                    href={`https://x.com/i/status/${tweet.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-amber-50 p-4 rounded-lg hover:bg-amber-100 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="font-bold text-amber-900">@{tweet.author}</span>
+                      <span className="text-amber-700">{tweet.amount} sats</span>
+                    </div>
+                    <p className="text-amber-800 text-sm">{tweet.text}</p>
+                    <div className="text-xs text-amber-600 mt-2">
+                      {new Date(tweet.timestamp).toLocaleDateString()}
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              <div className="text-center">
+                <a
+                  href="/hall-of-fame"
+                  className="inline-flex items-center px-6 py-3 bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 transition-colors"
+                >
+                  🏆 View Hall of Fame
+                </a>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Footer */}
