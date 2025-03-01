@@ -74,7 +74,7 @@ function CallbackContent() {
         console.log('Code verifier cleared from localStorage');
 
         // Redirect back to drop page if available, otherwise to success page
-        const redirectPath = returnPath ? `/d/${returnPath}` : '/twitter-auth/success';
+        const redirectPath = returnPath ? `/d/${returnPath}` : '/';
         localStorage.removeItem('return_to_drop'); // Clean up
         
         console.log('Redirecting to:', redirectPath);

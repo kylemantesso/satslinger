@@ -10,6 +10,8 @@ import { Action, FunctionCall } from 'near-api-js/lib/transaction';
 import { PublicKey, KeyPair } from 'near-api-js/lib/utils/key_pair';
 import { connect, keyStores, Account } from 'near-api-js';
 import { broadcastTransaction } from '@/utils/bitcoin';
+import { generateCodeChallenge, generateCodeVerifier } from '@/app/utils/utils';
+import { base64URLEncode } from '@/app/utils/utils';
 
 type TwitterUser = {
   handle: string;
@@ -110,26 +112,7 @@ async function getDrop(hash: string) {
   }
 }
 
-function generateCodeVerifier(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return base64URLEncode(array);
-}
 
-function base64URLEncode(buffer: Uint8Array | ArrayBuffer): string {
-  const array = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  return btoa(String.fromCharCode(...array))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return base64URLEncode(hash);
-}
 
 // Simple function to get UTXOs and select the largest one
 async function getUtxoInfo(pubKey: string, amount: number) {

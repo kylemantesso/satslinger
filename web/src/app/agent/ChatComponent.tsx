@@ -94,10 +94,10 @@ function AgentChat() {
                                 Howdy partner! 🤠
                             </p>
                             <p className="text-amber-800">
-                                I'm SatSlinger, the fastest Bitcoin-tipping bot in the Wild West! Just tell me your search terms and Twitter handle, and I'll help you reward the finest NEAR Protocol content with Bitcoin tips faster than a tumbleweed in a tornado! 🌟
+                                I'm SatSlinger, the fastest Bitcoin-tipping bot in the Wild West! Tell me what content you want to promote on X, and I'll help you reward the best posts with Bitcoin tips faster than a tumbleweed in a tornado! 🌟
                             </p>
                             <p className="text-amber-800 mt-2">
-                                What can I help you with today, partner?
+                                What kind of content would you like to boost today, partner?
                             </p>
                         </div>
                     </div>

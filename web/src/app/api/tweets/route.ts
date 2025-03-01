@@ -14,7 +14,7 @@ const TWITTER_REFRESH_TOKEN = process.env.TWITTER_REFRESH_TOKEN!;
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID!;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET!;
 const TWITTER_API_URL = 'https://api.twitter.com/2/tweets/search/recent';
-const MINIMUM_AGE_HOURS = 72;
+const MINIMUM_AGE_HOURS = 144;
 const XAI_API_KEY = process.env.XAI_API_KEY;
 
 // Add NEAR account credentials to env vars
