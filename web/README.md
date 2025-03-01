@@ -1,6 +1,6 @@
 # 🤠 SatSlinger
 
-SatSlinger is an AI-powered Bitcoin tipping bot that automatically rewards the best content on X (formerly Twitter) with Bitcoin tips. Built for the One Trillion Agents Hackathon.
+SatSlinger is a Bitcoin enabled AI agent that automatically rewards the best content on X with Bitcoin tips, using NEAR Protocol Chain Signatures. Create a campaign, tell the agent what you want to promote, and let the agent do the rest! Built for the One Trillion Agents Hackathon.
 
 ## 🌐 Links
 
@@ -18,6 +18,11 @@ SatSlinger is an AI-powered Bitcoin tipping bot that automatically rewards the b
   - Replies (0.3x weight)
   - Quote tweets (0.4x weight)
 - ECDSA signature verification for secure Bitcoin transactions
+
+### AI Agent using Bitte.ai
+- Bitte AI Agent deployment at satslinger.com/agent
+- Create your campaign using a chat interface
+- Generate your bitcoin funding address
 
 ### AI Content Evaluation
 - Automated content quality assessment
