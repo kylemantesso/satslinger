@@ -14,21 +14,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SatSlinger - Bitcoin Rewards for NEAR Protocol',
+  title: '🌵SatSlinger - Bitcoin Rewards for NEAR Protocol',
   description: 'The wildest Bitcoin-tipping saloon on the digital frontier! Rewarding great NEAR Protocol content with Bitcoin sats.',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' },
+    ],
   },
   openGraph: {
     title: 'SatSlinger - Bitcoin Rewards for NEAR Protocol',
     description: 'The wildest Bitcoin-tipping saloon on the digital frontier!',
-    images: ['/banner.png'],
+    images: ['/satslinger.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'SatSlinger',
     description: 'The wildest Bitcoin-tipping saloon on the digital frontier!',
-    images: ['/banner.png'],
+    images: ['/satslinger.png'],
   }
 };
 
