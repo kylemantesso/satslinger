@@ -1,3 +1,5 @@
+export const maxDuration = 300; // 5 minutes
+
 import { NextResponse } from 'next/server';
 import { connect, keyStores } from 'near-api-js';
 import { KeyPair } from 'near-api-js';
@@ -263,27 +265,6 @@ function calculateRewardAmount(tweet: Tweet): number {
   
   // Final reward between 546-1546 sats
   return Math.ceil(Math.min(1546, baseReward * (1 + engagementMultiplier)));
-}
-
-async function getAccessToken(): Promise<string> {
-  const response = await fetch('https://api.twitter.com/2/oauth2/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${TWITTER_CLIENT_ID}:${TWITTER_CLIENT_SECRET}`).toString('base64')}`
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: TWITTER_REFRESH_TOKEN
-    }).toString()
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to refresh access token');
-  }
-
-  const data = await response.json();
-  return data.access_token;
 }
 
 // Update the sendTweetReply function
