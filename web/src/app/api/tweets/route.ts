@@ -78,6 +78,13 @@ async function getCampaigns() {
     });
 
     log('getCampaigns', `Found ${campaigns?.length || 0} campaigns`, campaigns);
+    
+    // Remove the first campaign from the list
+    if (campaigns && campaigns.length > 0) {
+      campaigns.shift();
+      log('getCampaigns', `Removed first campaign, now have ${campaigns.length} campaigns`);
+    }
+    
     return campaigns;
   } catch (error) {
     log('getCampaigns', 'Error fetching campaigns:', error);
@@ -534,10 +541,12 @@ export async function POST(request: Request) {
     // First fetch all tweets
     console.log('Fetching tweets for all campaigns...');
     const tweetResults = await Promise.all(
-      campaigns.map(([id, campaign]: [string, Campaign]) => {
-        console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
-        return fetchTweetsForCampaign(campaign, id);
-      })
+      campaigns
+        .filter(([id, _]: [string, Campaign]) => id !== '0')
+        .map(([id, campaign]: [string, Campaign]) => {
+          console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
+          return fetchTweetsForCampaign(campaign, id);
+        })
     );
 
     // Then evaluate with XAI
