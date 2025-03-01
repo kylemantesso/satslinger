@@ -526,6 +526,9 @@ async function evaluateCampaignTweets(campaignResult: { campaignId: string, twee
   }
 }
 
+// Add this helper function for delay
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function POST(request: Request) {
   if (!TWITTER_BEARER_TOKEN) {
     console.error('❌ Twitter API token not found');
@@ -538,24 +541,25 @@ export async function POST(request: Request) {
     console.log(`Found ${campaigns.length} campaigns to process`);
     if (campaigns.length === 0) return NextResponse.json({ data: [] });
 
-    // First fetch all tweets
-    console.log('Fetching tweets for all campaigns...');
-    const tweetResults = await Promise.all(
-      campaigns
-        .filter(([id, _]: [string, Campaign]) => id !== '0')
-        .map(([id, campaign]: [string, Campaign]) => {
-          console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
-          return fetchTweetsForCampaign(campaign, id);
-        })
-    );
+    // Process campaigns sequentially with delay
+    const evaluatedResults = [];
+    for (let i = 0; i < campaigns.length; i++) {
+      const [id, campaign] = campaigns[i];
+      if (id === '0') continue;
 
-    // Then evaluate with XAI
-    const evaluatedResults = await Promise.all(
-      tweetResults.map((result, index) => {
-        console.log(`Evaluating tweets for campaign ${campaigns[index][0]}`);
-        return evaluateCampaignTweets(result, campaigns[index][1]);
-      })
-    );
+      console.log(`Fetching tweets for campaign ${id} with search terms: ${campaign.search_terms.join(', ')}`);
+      const tweetResult = await fetchTweetsForCampaign(campaign, id);
+      
+      console.log(`Evaluating tweets for campaign ${id}`);
+      const evaluatedResult = await evaluateCampaignTweets(tweetResult, campaign);
+      evaluatedResults.push(evaluatedResult);
+
+      // Add 5 second delay between campaigns, except for the last one
+      if (i < campaigns.length - 1) {
+        console.log('Waiting 5 seconds before processing next campaign...');
+        await wait(5000);
+      }
+    }
 
     return NextResponse.json({ data: evaluatedResults });
   } catch (error) {
