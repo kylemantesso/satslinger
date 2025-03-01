@@ -1,4 +1,4 @@
-import { networks, payments } from 'bitcoinjs-lib';
+import { payments } from 'bitcoinjs-lib';
 import { NETWORK_ID } from './near';
 
 export function pubKeyToAddress(pubKeyHex: string): string {
@@ -8,7 +8,7 @@ export function pubKeyToAddress(pubKeyHex: string): string {
   // Create payment object
   const payment = payments.p2pkh({
     pubkey: pubKeyBuffer,
-    network: networks.testnet
+    network: NETWORK_ID as any
   });
 
   // Return the address
