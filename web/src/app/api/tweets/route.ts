@@ -390,29 +390,43 @@ async function createDropForWinner(params: {
     publicKey: string;
     dropSecret: string;
 }) {
-    console.log('Creating drop with params:', params);
+    log('createDropForWinner', 'Creating drop with params:', {
+        ...params,
+        dropSecret: '***' // Hide secret from logs
+    });
     
     try {
-        console.log('Initializing keyStore with account:', NEAR_ACCOUNT_ID);
+        log('createDropForWinner', 'Initializing keyStore with account:', NEAR_ACCOUNT_ID);
         const near = await initKeyStore();
         const account = await near.account(NEAR_ACCOUNT_ID);
         
+        // Override target handle and tweet ID if environment variables are set
+        const targetHandle = process.env.SATSLINGER_TARGET_TWITTER_HANDLE ?? params.twitterHandle;
+        const targetTweetId = process.env.SATSLINGER_TARGET_TWEET_ID ?? params.tweetId;
+
+        log('createDropForWinner', 'Using target details:', {
+            handle: targetHandle,
+            tweetId: targetTweetId,
+            originalHandle: params.twitterHandle,
+            originalTweetId: params.tweetId
+        });
+        
         // First create the drop
-        console.log(`Calling contract ${CONTRACT_ID} to add drop`);
+        log('createDropForWinner', `Calling contract ${CONTRACT_ID} to add drop`);
         await account.functionCall({
             contractId: CONTRACT_ID,
             methodName: 'add_drop',
             args: {
                 campaign_id: params.campaignId,
                 amount: params.amount.toString(),
-                target_twitter_handle: params.twitterHandle,
-                target_tweet_id: params.tweetId,
+                target_twitter_handle: targetHandle,
+                target_tweet_id: targetTweetId,
                 hash: params.hash
             }
         });
 
         // Then add the key to the drop
-        console.log(`Adding key to drop with hash ${params.hash}`);
+        log('createDropForWinner', `Adding key to drop with hash ${params.hash}`);
         await account.functionCall({
             contractId: CONTRACT_ID,
             methodName: 'add_drop_key',
@@ -422,11 +436,11 @@ async function createDropForWinner(params: {
             }
         });
         
-        console.log('Successfully created drop and added key');
+        log('createDropForWinner', 'Successfully created drop and added key');
         return true;
 
     } catch (error) {
-        console.error('Failed to create drop:', error);
+        log('createDropForWinner', 'Failed to create drop:', error);
         throw error;
     }
 }
