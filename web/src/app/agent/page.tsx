@@ -1,7 +1,10 @@
 'use client';
-import { BitteWalletContextProvider, useBitteWallet, Wallet } from "@bitte-ai/react";
-import { BitteAiChat } from "@bitte-ai/chat";
-import { useEffect, useState } from "react";
+import dynamic from 'next/dynamic';
+
+const ChatComponent = dynamic(
+    () => import('./ChatComponent'),
+    { ssr: false }
+);
 
 const chatColors = {
   generalBackground: '#fff7ed', // orange-50
@@ -11,50 +14,7 @@ const chatColors = {
   borderColor: '#fcd34d', // amber-300
 };
 
-// Separate component that uses the wallet hook
-function AgentChat() {
-    const { selector } = useBitteWallet();
-    const [wallet, setWallet] = useState<Wallet>();
-
-    useEffect(() => {
-        const fetchWallet = async () => {
-            const walletInstance = await selector.wallet();
-            setWallet(walletInstance);
-        };
-        if (selector) fetchWallet();
-    }, [selector]);
-
-    return (
-        <BitteAiChat 
-            agentId="satslinger"
-            apiUrl="/api/agent"
-            wallet={{ near: { wallet } }}
-            options={{
-                agentName: "SatSlinger", 
-                agentImage: "/satslinger.png",
-                welcomeMessageComponent: (
-                    <div className="flex items-start gap-4">
-                        <div className="text-6xl">🌵</div>
-                        <div className="flex flex-col gap-2">
-                            <p className="text-lg font-semibold text-amber-900">
-                                Howdy partner! 🤠
-                            </p>
-                            <p className="text-amber-800">
-                                I'm SatSlinger, the fastest Bitcoin-tipping bot in the Wild West! Just tell me your search terms and Twitter handle, and I'll help you reward the finest NEAR Protocol content with Bitcoin tips faster than a tumbleweed in a tornado! 🌟
-                            </p>
-                            <p className="text-amber-800 mt-2">
-                                What can I help you with today, partner?
-                            </p>
-                        </div>
-                    </div>
-                ),
-                colors: chatColors
-            }}
-        />
-    );
-}
-
-// Main page component that provides the context
+// Main page component
 export default function AgentPage() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-100">
@@ -78,9 +38,7 @@ export default function AgentPage() {
             {/* Chat Section */}
             <div className="max-w-4xl mx-auto px-4 py-8 sm:py-16">
                 <div className="bg-white rounded-xl shadow-xl border-2 border-amber-200 overflow-hidden">
-                    <BitteWalletContextProvider>
-                        <AgentChat />
-                    </BitteWalletContextProvider>
+                    <ChatComponent />
                 </div>
             </div>
 
