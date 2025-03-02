@@ -61,7 +61,7 @@ export function najPublicKeyStrToUncompressedHexPoint(najPublicKeyStr: string): 
         const hexResult = '04' + Buffer.from(decodedKey).toString('hex');
         console.log('Converted to uncompressed hex point:', hexResult);
         return hexResult;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error decoding public key:', error);
         throw new Error(`Error decoding public key: ${error.message}`);
     }
