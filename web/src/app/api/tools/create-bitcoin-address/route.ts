@@ -32,7 +32,7 @@ export async function GET(request: Request) {
             mpcPath
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating Bitcoin address:', error);
         return NextResponse.json(
             { error: `Failed to create Bitcoin address: ${error.message}` },
