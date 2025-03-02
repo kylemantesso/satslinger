@@ -18,6 +18,7 @@ export default function HallOfFame() {
   const [drops, setDrops] = useState<Drop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(5); // Initially show 5 items
 
   useEffect(() => {
     async function loadDrops() {
@@ -74,6 +75,18 @@ export default function HallOfFame() {
     loadDrops();
   }, []);
 
+  // Function to load more items
+  const loadMore = () => {
+    setVisibleCount(prevCount => prevCount + 5);
+  };
+
+  // Get only the visible drops
+  const filteredDrops = drops.filter((drop) => drop.target_twitter_handle !== "kylemantesso");
+  const visibleDrops = filteredDrops.slice(0, visibleCount);
+  
+  // Check if there are more drops to show
+  const hasMoreDrops = visibleCount < filteredDrops.length;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
@@ -97,7 +110,7 @@ export default function HallOfFame() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12 space-y-4">
           <div className="text-6xl mb-2">🤠</div>
-          <h1 className="text-4xl font-bold text-amber-900 font-serif">SatSlinger's Hall of Fame</h1>
+          <h1 className="text-4xl font-bold text-amber-900 font-rye">SatSlinger's Hall of Fame</h1>
           <div className="border-b-2 border-dashed border-amber-200 w-1/2 mx-auto mb-4"></div>
           <p className="text-lg text-amber-800">
             Welcome to our Hall of Fame! These fine folks struck gold with their outstanding posts. 
@@ -106,18 +119,11 @@ export default function HallOfFame() {
         </div>
 
         <div className="space-y-8">
-          {drops.map((drop, index) => (
+          {visibleDrops.map((drop, index) => (
             <div 
               key={drop.hash}
               className="bg-white rounded-xl shadow-lg border-2 border-amber-200 overflow-hidden relative"
             >
-              {/* Add "Latest" badge for the 3 most recent drops */}
-              {index < 3 && (
-                <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                  Latest 🔥
-                </div>
-              )}
-              
               <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200">
                 <div className="flex justify-between items-center">
                   <div>
@@ -151,6 +157,18 @@ export default function HallOfFame() {
             </div>
           ))}
         </div>
+
+        {/* Load More Button */}
+        {hasMoreDrops && (
+          <div className="text-center mt-8">
+            <button
+              onClick={loadMore}
+              className="inline-flex items-center px-6 py-3 bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 transition-colors font-bold shadow-md"
+            >
+              🤠 View More Rewards
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

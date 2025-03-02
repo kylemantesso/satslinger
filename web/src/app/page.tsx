@@ -14,6 +14,7 @@ type RewardedTweet = {
 export default function Home() {
   const [recentRewards, setRecentRewards] = useState<RewardedTweet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(5); // Initially show 5 items
 
   useEffect(() => {
     // Fetch recent rewards
@@ -31,6 +32,17 @@ export default function Home() {
 
     fetchRecentRewards();
   }, []);
+
+  // Function to load more items
+  const loadMore = () => {
+    setVisibleCount(prevCount => prevCount + 5);
+  };
+
+  // Get only the visible rewards
+  const visibleRewards = recentRewards.slice(0, visibleCount);
+  
+  // Check if there are more rewards to show
+  const hasMoreRewards = visibleCount < recentRewards.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-amber-100">
@@ -51,7 +63,7 @@ export default function Home() {
       <div className="max-w-4xl mx-auto px-4 sm:py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-amber-900 mb-4 font-serif">
+          <h1 className="text-5xl font-bold text-amber-900 mb-4" style={{ fontFamily: 'var(--font-rye)' }}>
             Howdy, Partner!
           </h1>
           <p className="text-xl text-amber-800 mb-8">
@@ -67,7 +79,7 @@ export default function Home() {
           <div className="text-center">
             <a
               href="/agent"
-              className="inline-flex items-center px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+              className="inline-flex items-center px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
             >
               🤖 Promote your crypto project with our AI Agent
             </a>
@@ -78,7 +90,7 @@ export default function Home() {
         {/* Main Content */}
         <div className="bg-white rounded-xl shadow-2xl p-8 border-2 border-amber-200">
           <div className="prose prose-lg max-w-none text-amber-800">
-            <h2 className="text-3xl font-bold text-amber-900 mb-6">
+            <h2 className="text-3xl font-bold text-amber-900 mb-6 font-rye">
               What in Tarnation is SatSlinger? 🌵
             </h2>
             
@@ -91,14 +103,14 @@ export default function Home() {
 
             <div className="border-b-2 border-dashed border-amber-200 my-8"></div>
 
-            <h3 className="text-2xl font-bold text-amber-900 mb-4">
+            <h3 className="text-2xl font-bold text-amber-900 mb-4 font-rye">
               How It Works 
             </h3>
 
             <div className="grid gap-6 md:grid-cols-3 mb-8">
               <div className="bg-amber-50 p-6 rounded-lg">
                 <div className="text-4xl mb-2">🔍</div>
-                <h4 className="font-bold mb-2">Scout</h4>
+                <h4 className="font-bold mb-2 font-rye">Scout</h4>
                 <p className="text-sm">
                   We scout the territory for the most engaging posts on X
                 </p>
@@ -106,7 +118,7 @@ export default function Home() {
               
               <div className="bg-amber-50 p-6 rounded-lg">
                 <div className="text-4xl mb-2">💰</div>
-                <h4 className="font-bold mb-2">Reward</h4>
+                <h4 className="font-bold mb-2 font-rye">Reward</h4>
                 <p className="text-sm">
                   Top posts get rewarded with Bitcoin sats
                 </p>
@@ -114,7 +126,7 @@ export default function Home() {
               
               <div className="bg-amber-50 p-6 rounded-lg">
                 <div className="text-4xl mb-2">🎉</div>
-                <h4 className="font-bold mb-2">Claim</h4>
+                <h4 className="font-bold mb-2 font-rye">Claim</h4>
                 <p className="text-sm">
                   Creators claim their rewards faster than a quick-draw!
                 </p>
@@ -124,7 +136,7 @@ export default function Home() {
             <div className="border-b-2 border-dashed border-amber-200 my-8"></div>
 
             <div className="text-center">
-              <h3 className="text-2xl font-bold text-amber-900 mb-4">
+              <h3 className="text-2xl font-bold text-amber-900 mb-4 font-rye">
                 Ready to Join the Posse? 🌟
               </h3>
               
@@ -155,7 +167,7 @@ export default function Home() {
         {/* Recent Rewards Section */}
         <div className="mt-16 bg-white rounded-xl shadow-2xl p-8 border-2 border-amber-200">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-amber-900 mb-2">
+            <h2 className="text-3xl font-bold text-amber-900 mb-2 font-rye">
               Latest Rewards 🎯
             </h2>
             <p className="text-amber-800">
@@ -175,7 +187,7 @@ export default function Home() {
           ) : (
             <>
               <div className="space-y-4 mb-8">
-                {recentRewards.map((tweet) => (
+                {visibleRewards.map((tweet) => (
                   <a
                     key={tweet.id}
                     href={`https://x.com/i/status/${tweet.id}`}
@@ -195,13 +207,15 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="text-center">
-                <a
-                  href="/hall-of-fame"
-                  className="inline-flex items-center px-6 py-3 bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 transition-colors"
-                >
-                  🏆 View Hall of Fame
-                </a>
+              <div className="text-center space-y-4">
+                <div>
+                  <a
+                    href="/hall-of-fame"
+                    className="inline-flex items-center px-6 py-3 bg-amber-100 text-amber-900 rounded-lg hover:bg-amber-200 transition-colors"
+                  >
+                    🏆 View Hall of Fame
+                  </a>
+                </div>
               </div>
             </>
           )}
