@@ -528,7 +528,7 @@ export default function DropPage() {
       <div className="bg-white p-8 rounded-xl shadow-2xl max-w-[680px] w-full border-2 border-amber-200">
         <div className="text-center mb-8 space-y-4">
           <div className="text-6xl mb-2">🤠</div>
-          <h1 className="text-4xl font-bold mb-4 text-amber-900 font-serif">Howdy Partner!</h1>
+          <h1 className="text-4xl font-bold mb-4 text-amber-900">Howdy Partner!</h1>
           <div className="border-b-2 border-dashed border-amber-200 w-1/2 mx-auto mb-4"></div>
           
           <div className="inline-block bg-amber-100 border-2 border-amber-300 rounded-full px-4 py-2 text-amber-800">

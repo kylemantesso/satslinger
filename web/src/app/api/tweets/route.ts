@@ -86,7 +86,7 @@ async function getCampaigns() {
     log('getCampaigns', `Found ${campaigns?.length || 0} campaigns`, campaigns);
     
     // Remove the first campaign from the list
-    if (campaigns && campaigns.length > 0) {
+    if (campaigns && campaigns.length > 0 && NETWORK_ID === 'mainnet') {
       campaigns.shift();
       log('getCampaigns', `Removed first campaign, now have ${campaigns.length} campaigns`);
     }
