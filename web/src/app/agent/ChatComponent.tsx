@@ -4,6 +4,7 @@ import { BitteAiChat } from "@bitte-ai/chat";
 import { setupWalletSelector } from "@near-wallet-selector/core";
 import { setupModal } from "@near-wallet-selector/modal-ui";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
+import { setupMeteorWallet } from "@near-wallet-selector/meteor-wallet";
 import { useEffect, useState } from "react";
 import type { WalletSelector } from "@near-wallet-selector/core";
 import "@near-wallet-selector/modal-ui/styles.css";
@@ -26,7 +27,10 @@ function AgentChat() {
     useEffect(() => {
         setupWalletSelector({
             network: process.env.NEXT_PUBLIC_NEAR_NETWORK_ID === 'mainnet' ? 'mainnet' : 'testnet',
-            modules: [setupMyNearWallet()]
+            modules: [
+                setupMyNearWallet(),
+                setupMeteorWallet()
+            ]
         }).then((selector) => {
             setSelector(selector);
             const modal = setupModal(selector, {
@@ -61,7 +65,7 @@ function AgentChat() {
         return (
             <div className="flex flex-col items-center justify-center p-8 gap-4">
                 <div className="text-6xl">🤠</div>
-                <h2 className="text-xl font-semibold text-amber-900">
+                <h2 className="text-xl font-semibold text-amber-900 font-rye">
                     Howdy Partner!
                 </h2>
                 <p className="text-amber-800 text-center max-w-md">
@@ -74,6 +78,9 @@ function AgentChat() {
                 >
                     {isConnecting ? 'Connecting...' : 'Connect NEAR Wallet'}
                 </button>
+                <div className="text-sm text-amber-700 mt-2">
+                    Supports MyNearWallet and Meteor Wallet
+                </div>
             </div>
         );
     }
@@ -90,7 +97,7 @@ function AgentChat() {
                     <div className="flex items-start gap-4">
                         <div className="text-6xl">🌵</div>
                         <div className="flex flex-col gap-2">
-                            <p className="text-lg font-semibold text-amber-900">
+                            <p className="text-lg font-semibold text-amber-900 font-rye">
                                 Howdy partner! 🤠
                             </p>
                             <p className="text-amber-800">
