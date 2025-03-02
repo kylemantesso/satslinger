@@ -248,6 +248,7 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string): Promise<T
         ...tweet,
         engagement_score: calculateEngagementScore(tweet.public_metrics)
       }))
+      .filter((tweet: Tweet) => tweet.engagement_score > 0)
       .sort((a: Tweet, b: Tweet) => b.engagement_score - a.engagement_score);
 
     log('fetchTweets', `Final processed tweets: ${scoredTweets.length}`, 
@@ -257,6 +258,10 @@ async function fetchTweetsForCampaign(campaign: Campaign, id: string): Promise<T
         metrics: t.public_metrics
       }))
     );
+
+    if (scoredTweets.length === 0) {
+      return { campaignId: id, error: 'No tweets found' };
+    }
 
     return { campaignId: id, tweets: scoredTweets.slice(0, 3) };
   } catch (error) {
