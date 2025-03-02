@@ -34,8 +34,37 @@ interface AddressResult {
 }
 
 export function najPublicKeyStrToUncompressedHexPoint(najPublicKeyStr: string): string {
-    const decodedKey = base_decode(najPublicKeyStr.split(':')[1]);
-    return '04' + Buffer.from(decodedKey).toString('hex');
+    console.log('Input public key:', najPublicKeyStr);
+    
+    // Check if the key is in the expected format
+    if (!najPublicKeyStr || typeof najPublicKeyStr !== 'string') {
+        console.error('Invalid public key format:', najPublicKeyStr);
+        throw new Error(`Invalid public key format: ${najPublicKeyStr}`);
+    }
+    
+    // Handle case where the key doesn't contain a colon
+    const parts = najPublicKeyStr.split(':');
+    if (parts.length !== 2) {
+        console.error('Public key does not contain expected format (curve:data):', najPublicKeyStr);
+        
+        // If it's already a hex string without the prefix, try to use it directly
+        if (/^[0-9a-fA-F]+$/.test(najPublicKeyStr)) {
+            console.log('Treating input as raw hex data');
+            return '04' + najPublicKeyStr;
+        }
+        
+        throw new Error(`Public key does not contain expected format (curve:data): ${najPublicKeyStr}`);
+    }
+    
+    try {
+        const decodedKey = base_decode(parts[1]);
+        const hexResult = '04' + Buffer.from(decodedKey).toString('hex');
+        console.log('Converted to uncompressed hex point:', hexResult);
+        return hexResult;
+    } catch (error) {
+        console.error('Error decoding public key:', error);
+        throw new Error(`Error decoding public key: ${error.message}`);
+    }
 }
 
 export async function deriveChildPublicKey(
