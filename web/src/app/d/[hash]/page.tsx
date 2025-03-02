@@ -651,7 +651,7 @@ export default function DropPage() {
             </div>
           ) : (
             <p className="text-green-800">
-              Yeehaw! These sats have already been claimed and are riding off into the sunset! 
+              Yeehaw! These sats have been claimed and are riding off into the sunset! 
               Keep posting on X for more chances to earn Bitcoin rewards! 
             </p>
           )}

@@ -81,7 +81,7 @@ export default function HallOfFame() {
   };
 
   // Get only the visible drops
-  const filteredDrops = drops.filter((drop) => drop.target_twitter_handle !== "kylemantesso");
+  const filteredDrops = drops.reverse().filter((drop) => drop.target_twitter_handle !== "kylemantesso");
   const visibleDrops = filteredDrops.slice(0, visibleCount);
   
   // Check if there are more drops to show
