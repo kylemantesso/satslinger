@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/kylemantesso/satslinger/raw/main/web/public/banner.png" alt="SatSlinger Banner" width="100%">
+</p>
+
 # 🤠 SatSlinger
 
 SatSlinger is a Bitcoin enabled AI agent that automatically rewards the best content on X with Bitcoin tips, using NEAR Protocol Chain Signatures. Create a campaign, tell the agent what you want to promote, and let the agent do the rest! Built for the One Trillion Agents Hackathon.
