@@ -56,6 +56,7 @@ export default function RootLayout({
       <body className={geistSans.className}>
         {children}
         <Script src="https://platform.twitter.com/widgets.js" strategy="lazyOnload" />
+        <Analytics />
       </body>
     </html>
   )
