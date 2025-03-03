@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react"
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Rye } from "next/font/google";
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SatSlinger',
     description: 'The wildest Bitcoin-tipping saloon on the digital frontier!',
-    images: ['/satslinger.png'],
+    images: ['/twitter_image.png'],
   }
 };
 

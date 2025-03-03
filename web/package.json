@@ -19,6 +19,7 @@
     "@near-wallet-selector/modal-ui": "^8.10.0",
     "@near-wallet-selector/my-near-wallet": "^8.10.0",
     "@supabase/supabase-js": "^2.48.1",
+    "@vercel/analytics": "^1.5.0",
     "bs58": "^6.0.0",
     "elliptic": "^6.6.1",
     "keccak": "^3.0.4",
